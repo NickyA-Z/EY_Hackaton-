@@ -1,0 +1,52 @@
+# Race venues. Add a new venue (e.g. a team's home venue) by copying an entry.
+#
+# Full form: several candidate race areas (circles) per venue.
+#   areas.<key>.lat/lon    center of the race area (WGS84)
+#   areas.<key>.radius_km  radius of the race area
+#   buffer_km              box around all areas for terrain (upwind hills); bathymetry uses areas + 2 km
+#
+# Short form (single area): give lat, lon, race_radius_km directly on the venue.
+venues:
+  la28:
+    name: LA28 Olympic Sailing (Long Beach / Port of Los Angeles)
+    notes: >
+      16-28 July 2028. Boards race off Belmont Shore (Long Beach); boats at the Port of
+      Los Angeles. Official course areas are not published yet - these are candidate
+      areas to be replaced when LA28 / World Sailing release the course plan.
+    buffer_km: 10
+    areas:
+      belmont_shore:
+        lat: 33.748
+        lon: -118.140
+        radius_km: 1.5
+        events: [iQFoil men, iQFoil women, Formula Kite men, Formula Kite women]
+        notes: Off Belmont Veterans Memorial Pier, inside the Long Beach breakwater (approx).
+      la_outer_harbor:
+        lat: 33.712
+        lon: -118.272
+        radius_km: 1.0
+        events: [ILCA 7, ILCA 6, 49er, 49erFX, 470 mixed, Nacra 17]
+        notes: Port of LA Outer Harbor near Cabrillo Beach, inside the San Pedro breakwater (approx).
+      outside_breakwater:
+        lat: 33.695
+        lon: -118.235
+        radius_km: 2.0
+        events: [ILCA 7, ILCA 6, 49er, 49erFX, 470 mixed, Nacra 17]
+        notes: Open San Pedro Bay south of Angels Gate - alternative boat course (approx).
+
+  # ---- other venues (short form) - examples of non-LA locations ------------------
+  cadiz:
+    name: Bay of Cadiz (Spain)
+    lat: 36.5480
+    lon: -6.2800
+    race_radius_km: 1.5
+    buffer_km: 10
+    notes: Example European venue (EMODnet bathymetry, no NOAA sources).
+
+  sydney:
+    name: Sydney Harbour (Australia)
+    lat: -33.8530
+    lon: 151.2380
+    race_radius_km: 1.2
+    buffer_km: 10
+    notes: Example global venue (global fallback sources only).
