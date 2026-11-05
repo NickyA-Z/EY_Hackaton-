@@ -53,6 +53,9 @@ CSS = f"""
 .la-sailor {{ font-size:1.35rem; font-weight:700; color:{INK}; padding:14px 0; border-bottom:1px solid #e3ebe9; }}
 .la-why td {{ padding:6px 8px 6px 0; vertical-align:top; font-size:.9rem; }}
 .la-why td:first-child {{ color:{TEAL}; font-weight:700; white-space:nowrap; }}
+.la-mini {{ width:100%; border-collapse:collapse; font-size:.74rem; }}
+.la-mini th {{ text-align:left; color:#55666e; font-weight:600; padding:4px 8px; border-bottom:1px solid #d9e4e1; }}
+.la-mini td {{ padding:4px 8px; border-bottom:1px solid #eef2f1; vertical-align:top; }}
 .la-flow {{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 14px; }}
 .la-flow div {{ background:#fff7c9; border:1px solid #eadf8f; border-radius:6px; padding:8px 10px; font-size:.85rem; }}
 .la-flow div.done {{ background:#dff1e4; border-color:#b5dcbf; }}
@@ -117,6 +120,11 @@ def history():
 @st.cache_data(show_spinner=False)
 def live_data():
     return strategy.load_wind([strategy.LIVE_YEAR])
+
+
+def season():
+    """Months covered by the history, e.g. "June–July" (from the data, not hard-coded)."""
+    return strategy.season_label(history())
 
 
 @st.cache_data(show_spinner=False)
@@ -287,8 +295,9 @@ def render_event_settings():
     st.selectbox("Venue", list(strategy.VENUES), key="venue", on_change=use_venue_coordinates)
     spot = strategy.VENUES[st.session_state.venue]
     st.selectbox("Class", spot["classes"], key="boat_class")
-    st.date_input("Race day", key="race_day", min_value=dt.date(2026, 6, 1), max_value=dt.date(2026, 6, 30),
-                  help="Hackathon mode: June 2026 is replayed as if live.")
+    live_days = live_data()["date"]
+    st.date_input("Race day", key="race_day", min_value=live_days.min(), max_value=live_days.max(),
+                  help=f"Hackathon mode: {season()} {strategy.LIVE_YEAR} is replayed as if live.")
     st.segmented_control("Time of day", list(strategy.TIME_OF_DAY), key="time_of_day")
 
 
@@ -357,26 +366,18 @@ def render_coach_file():
             if doc["error"]:
                 st.caption(f"⚠️ {doc['error']}")
 
-    st.subheader("What the coach can upload")
-    rows = analysis.checklist(documents())
-    st.dataframe(
-        [{"": "✅" if row["provided"] else ("❗" if row["required"] else "○"), "Upload": row["item"],
-          "Formats": row["formats"], "Read by": row["capability"], "Used in": row["used_in"]}
-         for row in rows],
-        hide_index=True, width="stretch")
-    st.caption("Everything is optional except the sailing instructions; without uploads the agent "
-               "works from public data only. Public data joined automatically: Open-Meteo wind & cloud "
-               "(June 2021–2025) · NOAA tides · NCEI bathymetry & terrain · SailSync race tracks.")
-
-    tagged = [doc for doc in documents() if doc["tags"]]
-    if tagged:
-        st.subheader("What the agent read")
-        for doc in tagged:
-            with st.expander(f"{doc['name']} — {', '.join(doc['tags'])}"):
-                for topic, lines in doc["tags"].items():
-                    st.markdown(f"**{topic}**")
-                    for line in lines[:4]:
-                        st.markdown(f"- {line}")
+    with st.expander("What the coach can upload (demo guide)"):
+        head = "".join(f"<th>{title}</th>" for title in ("", "Upload", "Formats", "Read by", "Used in"))
+        body = "".join(
+            f"<tr><td>{'✅' if row['provided'] else ('❗' if row['required'] else '○')}</td>"
+            f"<td>{esc(row['item'])}</td><td>{esc(row['formats'])}</td><td>{esc(row['capability'])}</td>"
+            f"<td>{esc(row['used_in'])}</td></tr>"
+            for row in analysis.checklist(documents()))
+        st.markdown(f'<table class="la-mini"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>',
+                    unsafe_allow_html=True)
+        st.caption("Everything is optional except the sailing instructions; without uploads the agent "
+                   "works from public data only. Public data joined automatically: Open-Meteo wind & cloud "
+                   f"({season()} 2021–2025) · NOAA tides · NCEI bathymetry & terrain · SailSync race tracks.")
 
 
 # ---------- 2. Venue map ----------
@@ -478,7 +479,7 @@ def render_venue_map(render_geo_data):
     c3.pills("Layers", ["Wind", "Pressure", "Terrain effects", "Current"], selection_mode="multi", key="layers")
     insight, tide = current_insight()
     if insight["n_days"] == 0:
-        st.warning(f"No June day in 2021–2025 had {insight['sector']} wind at {insight['hour']}:00. "
+        st.warning(f"No {season()} day in 2021–2025 had {insight['sector']} wind at {insight['hour']}:00. "
                    "Pick another direction or hour.")
     else:
         left, right = st.columns([2, 1], gap="medium")
@@ -655,7 +656,7 @@ def render_what_if(insight):
                                       state.risk_appetite)
     scenario = strategy.scenario_approach(what_if, state.wi_strength, state.wi_breeze, state.risk_appetite)
     if not what_if["n_days"]:
-        st.caption(f"No June day in 2021–2025 had {state.wi_sector} at {insight['hour']}:00, so the "
+        st.caption(f"No {season()} day in 2021–2025 had {state.wi_sector} at {insight['hour']}:00, so the "
                    "side is unknown and the approach falls back to the middle.")
     labels = {"side": "Favoured side", "commitment": "Commitment", "start": "Start",
               "first_beat": "First beat", "corners": "How far to go", "plan_b": "Plan B trigger"}
@@ -675,7 +676,7 @@ def render_scenario_table(insight):
     appetite = st.session_state.risk_appetite
     rows = strategy.scenario_matrix(history(), insight["hour"], insight["sector"], insight["speed"], appetite)
     st.subheader("Scenarios vs risk appetite")
-    st.caption(f"Likelihood (1–5, share of June days at {insight['hour']}:00) × impact on the plan (1–5) = "
+    st.caption(f"Likelihood (1–5, share of {season()} days at {insight['hour']}:00) × impact on the plan (1–5) = "
                f"score. {appetite} appetite accepts up to {strategy.APPETITES[appetite]}; pick a lever per "
                "scenario to see the residual score.")
     widths = [2.4, 0.6, 0.5, 0.5, 0.8, 1.2, 3.4, 0.8]
@@ -796,7 +797,7 @@ def render_live():
 
     top, sim = st.columns([3, 1])
     top.caption("Weather pulled every hour and compared with this morning's brief. "
-                "Hackathon mode: replaying June 2026 data as if live.")
+                f"Hackathon mode: replaying {season()} {strategy.LIVE_YEAR} data as if live.")
     if sim.button("Simulate next hour ▸", type="primary", width="stretch", disabled=last >= len(hours) - 1):
         st.session_state.live_index = st.session_state.selected_hour = last + 1
         st.rerun()

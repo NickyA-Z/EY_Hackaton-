@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Personal notes (not shared)
+メモ_*.md
+
+# Inbox uploads are local and untrusted
+src/conditions_June_2026/data/inbox/

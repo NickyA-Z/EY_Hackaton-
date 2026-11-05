@@ -189,16 +189,6 @@ def render_point_result(result):
     average_metric.metric("Average", f"{values.mean():.2f} {unit}".strip())
     maximum_metric.metric("Maximum", f"{values.max():.2f} {unit}".strip())
 
-    display_dataframe = dataframe[["time", selected_variable]].rename(
-        columns={selected_variable: VARIABLE_LABELS[selected_variable]}
-    )
-    st.dataframe(
-        display_dataframe,
-        width="stretch",
-        height=RESULT_VIEW_HEIGHT,
-        hide_index=True,
-    )
-
     st.subheader("Time series")
     chart_dataframe = dataframe.set_index("time")
     st.line_chart(
