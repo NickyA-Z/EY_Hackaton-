@@ -45,6 +45,19 @@ GLOBAL_STYLES = """
     color: var(--teamnl-blue);
 }
 
+/* Navigation floats: frozen at the top while the page scrolls (below Streamlit's toolbar).
+   Sticky goes on Streamlit's wrapper: the keyed block's own parent is only as tall as the block. */
+[data-testid="stLayoutWrapper"]:has(> .st-key-dashboard_header) {
+    position: sticky;
+    top: 3.75rem;
+    z-index: 990;
+}
+
+.st-key-dashboard_header {
+    background: var(--teamnl-white);
+    box-shadow: 0 6px 16px rgba(0, 55, 138, 0.08);
+}
+
 /* Keep the two-level dashboard navigation compact and visually connected. */
 .st-key-dashboard_header [data-testid="stVerticalBlock"] {
     gap: 0.65rem;
