@@ -44,13 +44,13 @@ def select_geolocation(area):
 
 def render_header():
     """Render grouped navigation and compact shared location controls."""
-    active_view = st.session_state.setdefault("active_view", "coach")
+    active_view = st.session_state.setdefault("active_view", "live")
     st.session_state.setdefault("selected_latitude", 33.72)
     st.session_state.setdefault("selected_longitude", -118.27)
 
     with st.container(border=True, key="dashboard_header"):
-        coach_navigation, venue_navigation, briefs_navigation, strategy_navigation, live_navigation = st.columns(
-            [1.15, 1, 1, 1, 0.8]
+        live_navigation, coach_navigation, venue_navigation, briefs_navigation, strategy_navigation = st.columns(
+            [0.8, 1.15, 1, 1, 1]
         )
 
         coach_navigation.button(
