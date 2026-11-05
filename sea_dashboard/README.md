@@ -13,7 +13,8 @@ variable.
 
 The main view includes an Earth-style regional marine field. Directional layers
 use moving particles, while scalar layers use a colour surface. Use the embedded
-play button and hour slider to explore the end date selected in the sidebar.
+play button and hour slider to explore the historical map date selected in the
+map view.
 Click the map to inspect the local value and, when available, direction.
 
 ## Start the dashboard
@@ -94,10 +95,13 @@ navigation.
 
 | File | Responsibility |
 | --- | --- |
-| `dashboard.py` | Streamlit controls, session state, metrics, tables, charts, and error presentation |
-| `marine_api.py` | Open-Meteo requests, layer definitions, caching, spatial grid construction, masking, and direction-to-vector conversion |
-| `current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
+| `dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
+| `agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
+| `frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
+| `compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
+| `retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
+| `retrieval/geolocation.py` | Approved LA28 terrain and bathymetry JSON loading |
 | `run_local.sh` | Reproducible local launcher and dependency environment |
 
-This keeps external-data logic independent from presentation, so API changes
-can be handled without editing the map renderer or dashboard layout.
+The existing Location Agent layout remains the main interface; map rendering,
+marine calculations, and data retrieval are separated into dedicated modules.

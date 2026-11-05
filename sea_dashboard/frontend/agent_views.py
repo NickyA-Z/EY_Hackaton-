@@ -1,5 +1,5 @@
 """Location Agent views: Coach file, Venue map, Venue rules, Coach brief,
-Sailor brief, Strategy overview and Live. Logic lives in ../backend."""
+Sailor brief, Strategy overview and Live."""
 
 import datetime as dt
 import html
@@ -9,8 +9,7 @@ from pathlib import Path
 
 import streamlit as st
 
-# shortcut: imports ../backend by path; upgrade to an installed package when the repo gets a pyproject.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from backend import analysis, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
 

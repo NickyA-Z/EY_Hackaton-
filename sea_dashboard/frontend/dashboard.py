@@ -1,28 +1,27 @@
+"""Streamlit entry point for the LA28 marine dashboard."""
+
 from datetime import date
-import json
-from pathlib import Path
 
 import pandas as pd
 import requests
 import streamlit as st
 
-import agent_views
-from current_map import render_current_map
-from marine_api import (
-    MAP_LAYERS,
+from backend.compute.map_grid import MAP_LAYERS, get_map_grid
+from backend.retrieval.geolocation import (
+    GEO_DATA_DIRECTORY,
+    load_geolocation_data,
+)
+from backend.retrieval.marine_api import (
     MARINE_VARIABLES,
     VARIABLE_LABELS,
-    get_map_grid,
     get_marine_data,
 )
+from sea_dashboard.frontend import agent_views
+from sea_dashboard.frontend.current_map import render_current_map
 
 RESULT_VIEW_HEIGHT = 500
 EARLIEST_MAP_DATE = date(1940, 1, 1)
 LATEST_MAP_DATE = date(2026, 11, 3)
-GEO_DATA_DIRECTORY = (
-    Path(__file__).resolve().parent.parent / "geo_data" / "data" / "la28" / "json"
-)
-GEO_DATA_FILES = ("bathymetry.json", "terrain.json")
 
 
 def select_view(view):
@@ -39,19 +38,6 @@ def select_geolocation(area):
     """Apply a JSON-defined LA28 area to the shared coordinates."""
     st.session_state["selected_latitude"] = float(area["lat"])
     st.session_state["selected_longitude"] = float(area["lon"])
-
-
-@st.cache_data(show_spinner=False)
-def load_geolocation_data():
-    """Load LA28 geolocation metadata only from the approved JSON folder."""
-    datasets = {}
-    for filename in GEO_DATA_FILES:
-        path = GEO_DATA_DIRECTORY / filename
-        with path.open(encoding="utf-8") as source:
-            payload = json.load(source)
-        payload.pop("values", None)
-        datasets[payload["dataset"]] = payload
-    return datasets
 
 
 def render_header():
