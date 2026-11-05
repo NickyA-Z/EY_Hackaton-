@@ -161,24 +161,45 @@ def context_line():
 
 # ---------- 1. Coach file ----------
 
+@st.dialog("Upload coach files", width="large")
+def upload_dialog():
+    files_tab, transcript_tab = st.tabs(["Drag & drop or browse", "Paste a transcript"])
+    with files_tab:
+        uploads = st.file_uploader(
+            "Drag and drop files here, or click **Upload** to pick them from your computer",
+            accept_multiple_files=True, type=analysis.UPLOAD_TYPES, key="dialog_uploads")
+        st.caption("Sailing instructions · wind logs · GPS tracks · results · notes · "
+                   "photos of whiteboards · transcripts")
+        if st.button("Add files", type="primary", disabled=not uploads, width="stretch"):
+            for upload in uploads:
+                st.session_state.uploaded[upload.name] = analyse_upload(upload.name, upload.getvalue())
+            st.rerun()  # closes the dialog
+    with transcript_tab:
+        title = st.text_input("Title", value="Debrief transcript", key="paste_title")
+        text = st.text_area("Transcript (plain text, VTT or SRT)", height=180, key="paste_text",
+                            placeholder="Coach: How did the first beat go?\nSailor: Right paid after 12:00.")
+        if st.button("Add transcript", type="primary", disabled=not text.strip(), width="stretch"):
+            st.session_state.pasted.append(analysis.analyse_pasted_transcript(title, text))
+            st.rerun()
+
+
 def render_coach_file():
     st.header("Coach file")
-    st.caption("Drop your own files. Each one is mapped to the common venue model, read by the right "
+    st.caption("Upload your own files. Each one is mapped to the common venue model, read by the right "
                "capability (text, picture of text, transcript) and tagged by topic.")
     left, right = st.columns([1.7, 1], gap="large")
 
     with left, st.container(border=True):
-        st.markdown("#### Coach files")
-        uploads = st.file_uploader("Drop files or browse", accept_multiple_files=True,
-                                   type=analysis.UPLOAD_TYPES, key="coach_uploads")
-        for upload in uploads or []:
-            st.session_state.uploaded[upload.name] = analyse_upload(upload.name, upload.getvalue())
+        title, upload_col = st.columns([2, 1])
+        title.markdown("#### Coach files")
+        if upload_col.button("⬆ Upload", type="primary", width="stretch"):
+            upload_dialog()
         if st.session_state.uploaded:
             st.button("Clear uploads · back to demo set",
                       on_click=lambda: st.session_state.uploaded.clear())
         else:
             st.caption("Showing the demo file set (sample texts marked DEMO SAMPLE). "
-                       "Drop your own files to replace it.")
+                       "Press **Upload** to add your own files.")
         for doc in documents():
             status = ('<span class="la-bad">Not read</span>' if doc["error"] else
                       '<span class="la-ok">Mapped</span>')
@@ -189,14 +210,6 @@ def render_coach_file():
                 unsafe_allow_html=True)
             if doc["error"]:
                 st.caption(f"⚠️ {doc['error']}")
-
-        with st.expander("Insert a transcript (paste text, VTT or SRT)"):
-            title = st.text_input("Title", value="Debrief transcript", key="paste_title")
-            text = st.text_area("Transcript", height=140, key="paste_text",
-                                placeholder="Coach: How did the first beat go?\nSailor: Right paid after 12:00.")
-            if st.button("Add transcript", disabled=not text.strip()):
-                st.session_state.pasted.append(analysis.analyse_pasted_transcript(title, text))
-                st.rerun()
 
     with right, st.container(border=True):
         st.markdown("#### Venue & event")
