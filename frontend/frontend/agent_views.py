@@ -17,7 +17,6 @@ from backend import analysis, boat_speed, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
 from backend.compute.map_grid import MAP_LAYERS, get_map_grid, local_bounds  # noqa: E402
 from frontend.frontend.current_map import combine_layers, render_current_map  # noqa: E402
-from frontend.frontend.ocean_3d import render_ocean_3d  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
 
@@ -966,6 +965,10 @@ def render_speed_forecast():
     horizon = 30
     data = speed_dataset(horizon)
     locations = boat_speed.FORECAST_LOCATIONS
+    if not st.session_state.get("_speed_location_default_migrated"):
+        if st.session_state.get("speed_location") in (None, "Belmont Shore"):
+            st.session_state["speed_location"] = "LA Outer Harbor"
+        st.session_state["_speed_location_default_migrated"] = True
     location_col, boat_col = st.columns([1, 2])
     location = location_col.selectbox("Sailing area", list(locations), key="speed_location")
     location_info = locations[location]
@@ -1009,46 +1012,29 @@ def render_speed_forecast():
     )
     model = speed_model(horizon, selected_boat)
 
-    visualisation = st.segmented_control(
-        "Visualisation",
-        ["2D GPS map", "3D coaching"],
-        default="2D GPS map",
-        key="speed_visualisation",
+    st.subheader("GPS movement and predicted position")
+    layer = st.selectbox(
+        "Map data",
+        ["GPS speed route", "Location only", *MAP_LAYERS],
+        key="speed_calibrated_layer",
     )
-    if visualisation == "3D coaching":
-        st.subheader("Simulated 3D coaching view")
+    if layer == "GPS speed route":
         st.caption(
-            "Phase 1 foundation: this verifies the isolated 3D renderer. GPS synchronisation "
-            "and wave-driven boat movement are added only in their approved phases."
+            "Hover over the trail for speed. Dark marker = current GPS position; orange marker = "
+            f"projected position in {horizon} seconds at the predicted speed."
         )
-        render_ocean_3d({
-            "location": location,
-            "boat": selected_boat,
-        })
+        speed_replay_map(
+            boat_rows, index, model, horizon, location, location_info
+        )
     else:
-        st.subheader("GPS movement and predicted position")
-        layer = st.selectbox(
-            "Map data",
-            ["GPS speed route", "Location only", *MAP_LAYERS],
-            key="speed_calibrated_layer",
+        render_speed_area_map(
+            location,
+            location_info,
+            layer,
+            "speed_calibrated",
+            gps_overlay=speed_track_points(boat_rows, model, horizon),
+            gps_index=index,
         )
-        if layer == "GPS speed route":
-            st.caption(
-                "Hover over the trail for speed. Dark marker = current GPS position; orange marker = "
-                f"projected position in {horizon} seconds at the predicted speed."
-            )
-            speed_replay_map(
-                boat_rows, index, model, horizon, location, location_info
-            )
-        else:
-            render_speed_area_map(
-                location,
-                location_info,
-                layer,
-                "speed_calibrated",
-                gps_overlay=speed_track_points(boat_rows, model, horizon),
-                gps_index=index,
-            )
     st.caption(
         f"Validation MAE: {model.validation_mae_kt:.2f} kt · "
         f"{model.training_rows:,} samples from {model.boats} other boats · "
