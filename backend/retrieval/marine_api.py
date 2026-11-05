@@ -24,6 +24,22 @@ MARINE_VARIABLES = [
     "swell_wave_period",
 ]
 
+# Point charts focus on scalar values that are meaningful as time series.
+# Direction variables remain part of MARINE_VARIABLES because the regional
+# map combines them with their corresponding magnitude.
+POINT_VARIABLES = [
+    "ocean_current_velocity",
+    "sea_level_height_msl",
+    "sea_surface_temperature",
+    "wave_height",
+    "wave_period",
+    "wave_peak_period",
+    "wind_wave_height",
+    "wind_wave_period",
+    "swell_wave_height",
+    "swell_wave_period",
+]
+
 VARIABLE_LABELS = {
     variable: variable.replace("_", " ").title()
     for variable in MARINE_VARIABLES

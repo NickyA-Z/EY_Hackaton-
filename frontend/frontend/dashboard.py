@@ -23,11 +23,23 @@ from frontend.frontend.styles import apply_global_styles
 RESULT_VIEW_HEIGHT = 500
 EARLIEST_MAP_DATE = date(1940, 1, 1)
 LATEST_MAP_DATE = date(2026, 11, 3)
+DATA_VIEWS = {
+    "Map": "map",
+    "Points": "point",
+    "Location": "geolocation",
+}
 
 
 def select_view(view):
     """Open one of the dashboard's main views."""
     st.session_state["active_view"] = view
+
+
+def select_data_view():
+    """Open the marine-data view selected in the compact tool switcher."""
+    selected_tool = st.session_state.get("data_navigation")
+    if selected_tool:
+        select_view(DATA_VIEWS[selected_tool])
 
 
 def select_latest_map_date():
@@ -42,71 +54,131 @@ def select_geolocation(area):
 
 
 def render_header():
-    """Render top navigation and shared location controls."""
+    """Render grouped navigation and compact shared location controls."""
     active_view = st.session_state.setdefault("active_view", "coach")
     st.session_state.setdefault("selected_latitude", 33.72)
     st.session_state.setdefault("selected_longitude", -118.27)
 
-    with st.container(border=True):
-        for column, (view, label) in zip(
-            st.columns(len(agent_views.AGENT_VIEWS)), agent_views.AGENT_VIEWS.items()
-        ):
-            column.button(
-                label,
-                key=f"show_{view}_view",
-                type="primary" if active_view == view else "secondary",
+    with st.container(border=True, key="dashboard_header"):
+        coach_navigation, venue_navigation, briefs_navigation, strategy_navigation, live_navigation = st.columns(
+            [1.15, 1, 1, 1, 0.8]
+        )
+
+        coach_navigation.button(
+            "Coach file",
+            key="show_coach_view",
+            type="primary" if active_view == "coach" else "secondary",
+            width="stretch",
+            on_click=select_view,
+            args=("coach",),
+        )
+
+        venue_label = {
+            "venue": "Venue · Map",
+            "rules": "Venue · Rules",
+        }.get(active_view, "Venue")
+        with venue_navigation.popover(venue_label, width="stretch"):
+            st.caption("VENUE")
+            st.button(
+                "Map",
+                key="show_venue_view",
+                type="primary" if active_view == "venue" else "secondary",
                 width="stretch",
                 on_click=select_view,
-                args=(view,),
+                args=("venue",),
             )
-        (
-            map_navigation,
-            chart_navigation,
-            geolocation_navigation,
-            latitude_column,
-            longitude_column,
-        ) = st.columns([1, 1, 1, 1.25, 1.25])
+            st.button(
+                "Rules",
+                key="show_rules_view",
+                type="primary" if active_view == "rules" else "secondary",
+                width="stretch",
+                on_click=select_view,
+                args=("rules",),
+            )
 
-        map_navigation.button(
-            "Map layer",
-            key="show_map_view",
-            type="primary" if active_view == "map" else "secondary",
+        briefs_label = {
+            "coach_brief": "Briefs · Coach",
+            "sailor_brief": "Briefs · Sailor",
+        }.get(active_view, "Briefs")
+        with briefs_navigation.popover(briefs_label, width="stretch"):
+            st.caption("BRIEFS")
+            st.button(
+                "Coach",
+                key="show_coach_brief_view",
+                type="primary" if active_view == "coach_brief" else "secondary",
+                width="stretch",
+                on_click=select_view,
+                args=("coach_brief",),
+            )
+            st.button(
+                "Sailor",
+                key="show_sailor_brief_view",
+                type="primary" if active_view == "sailor_brief" else "secondary",
+                width="stretch",
+                on_click=select_view,
+                args=("sailor_brief",),
+            )
+
+        strategy_navigation.button(
+            "Strategy",
+            key="show_overview_view",
+            type="primary" if active_view == "overview" else "secondary",
             width="stretch",
             on_click=select_view,
-            args=("map",),
+            args=("overview",),
         )
-        chart_navigation.button(
-            "Point chart",
-            key="show_point_view",
-            type="primary" if active_view == "point" else "secondary",
+        live_navigation.button(
+            "● Live",
+            key="show_live_view",
+            type="primary" if active_view == "live" else "secondary",
             width="stretch",
             on_click=select_view,
-            args=("point",),
-        )
-        geolocation_navigation.button(
-            "Geolocation",
-            key="show_geolocation_view",
-            type="primary" if active_view == "geolocation" else "secondary",
-            width="stretch",
-            on_click=select_view,
-            args=("geolocation",),
-        )
-        latitude = latitude_column.number_input(
-            "Latitude",
-            min_value=-90.0,
-            max_value=90.0,
-            format="%.5f",
-            key="selected_latitude",
-        )
-        longitude = longitude_column.number_input(
-            "Longitude",
-            min_value=-180.0,
-            max_value=180.0,
-            format="%.5f",
-            key="selected_longitude",
+            args=("live",),
         )
 
-    return latitude, longitude
+        st.markdown('<div class="header-divider"></div>', unsafe_allow_html=True)
+
+        tools_column, location_column = st.columns([3, 2])
+        active_data_tool = next(
+            (label for label, view in DATA_VIEWS.items() if view == active_view),
+            None,
+        )
+        if st.session_state.get("data_navigation") != active_data_tool:
+            st.session_state["data_navigation"] = active_data_tool
+        tools_column.segmented_control(
+            "Marine data tools",
+            list(DATA_VIEWS),
+            key="data_navigation",
+            on_change=select_data_view,
+            label_visibility="collapsed",
+            width="stretch",
+        )
+
+        latitude = st.session_state["selected_latitude"]
+        longitude = st.session_state["selected_longitude"]
+        location_label = f"📍 {latitude:.3f}, {longitude:.3f}"
+        with location_column.popover(location_label, width="stretch"):
+            st.caption("SHARED LOCATION")
+            st.number_input(
+                "Latitude",
+                min_value=-90.0,
+                max_value=90.0,
+                format="%.5f",
+                key="selected_latitude",
+            )
+            st.number_input(
+                "Longitude",
+                min_value=-180.0,
+                max_value=180.0,
+                format="%.5f",
+                key="selected_longitude",
+            )
+            st.caption("Used by the regional map and point analysis.")
+
+    return (
+        st.session_state["selected_latitude"],
+        st.session_state["selected_longitude"],
+    )
 
 
 def render_map_view(latitude, longitude, title="Map layer"):
@@ -116,6 +188,13 @@ def render_map_view(latitude, longitude, title="Map layer"):
 
     if st.session_state.get("selected_map_layer") not in MAP_LAYERS:
         st.session_state["selected_map_layer"] = "Ocean currents"
+    selected_map_date = st.session_state.get("selected_map_date")
+    if (
+        not isinstance(selected_map_date, date)
+        or selected_map_date < EARLIEST_MAP_DATE
+        or selected_map_date > LATEST_MAP_DATE
+    ):
+        st.session_state["selected_map_date"] = LATEST_MAP_DATE
 
     layer_column, date_column, latest_column, load_column = st.columns(
         [1.5, 1.5, 1, 1]
@@ -128,7 +207,6 @@ def render_map_view(latitude, longitude, title="Map layer"):
     )
     map_date = date_column.date_input(
         "Historical map date",
-        value=LATEST_MAP_DATE,
         min_value=EARLIEST_MAP_DATE,
         max_value=LATEST_MAP_DATE,
         key="selected_map_date",
@@ -429,10 +507,7 @@ def main():
 
     apply_global_styles()
     st.title("LA28 Olympic Sailing — Location Agent")
-    st.write(
-        "Top row: the coach's race-prep flow. Second row: raw marine data, "
-        "point chart and LA28 geolocation."
-    )
+    st.caption("Race preparation, venue intelligence and live decision support.")
 
     agent_views.init_state()
     latitude, longitude = render_header()

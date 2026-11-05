@@ -11,7 +11,11 @@ from pathlib import Path
 
 import pandas as pd
 
-RESULTS = Path(__file__).resolve().parent.parent / "sailsync_api_results"
+RESULTS = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "sailsync_api_results"
+)
 BEAT_MINUTES = 8  # long enough to commit to a side, short enough to stay on beat 1
 
 

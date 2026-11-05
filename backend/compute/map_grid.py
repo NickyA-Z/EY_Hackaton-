@@ -14,7 +14,9 @@ MAP_LAYERS = {
         "direction_type": "toward",
         "unit": "kn",
         "legend": "CURRENT SPEED",
-        "description": "Particles follow the modelled surface current.",
+        "description": (
+            "Particles show where the current flows; colour shows speed."
+        ),
     },
     "Waves": {
         "mode": "directional",
@@ -23,7 +25,7 @@ MAP_LAYERS = {
         "direction_type": "from",
         "unit": "m",
         "legend": "WAVE HEIGHT",
-        "description": "Particles travel in wave-propagation direction; colour shows height.",
+        "description": "Particles show wave propagation; colour shows height.",
     },
     "Wind waves": {
         "mode": "directional",
@@ -32,7 +34,9 @@ MAP_LAYERS = {
         "direction_type": "from",
         "unit": "m",
         "legend": "WIND-WAVE HEIGHT",
-        "description": "Particles travel with wind waves; colour shows height.",
+        "description": (
+            "Particles show wind-wave propagation; colour shows height."
+        ),
     },
     "Swell": {
         "mode": "directional",
@@ -41,35 +45,7 @@ MAP_LAYERS = {
         "direction_type": "from",
         "unit": "m",
         "legend": "SWELL HEIGHT",
-        "description": "Particles travel in swell direction; colour shows height.",
-    },
-    "Wave height": {
-        "mode": "scalar",
-        "value": "wave_height",
-        "unit": "m",
-        "legend": "WAVE HEIGHT",
-        "description": "Colour field of significant wave height.",
-    },
-    "Wave period": {
-        "mode": "scalar",
-        "value": "wave_period",
-        "unit": "s",
-        "legend": "WAVE PERIOD",
-        "description": "Colour field of mean wave period.",
-    },
-    "Sea temperature": {
-        "mode": "scalar",
-        "value": "sea_surface_temperature",
-        "unit": "°C",
-        "legend": "SEA TEMPERATURE",
-        "description": "Colour field of sea-surface temperature.",
-    },
-    "Sea level": {
-        "mode": "scalar",
-        "value": "sea_level_height_msl",
-        "unit": "m",
-        "legend": "SEA-LEVEL HEIGHT",
-        "description": "Colour field relative to global mean sea level.",
+        "description": "Particles show swell propagation; colour shows height.",
     },
 }
 

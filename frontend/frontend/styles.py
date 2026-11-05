@@ -44,6 +44,37 @@ GLOBAL_STYLES = """
     border-color: var(--teamnl-blue);
     color: var(--teamnl-blue);
 }
+
+/* Keep the two-level dashboard navigation compact and visually connected. */
+.st-key-dashboard_header [data-testid="stVerticalBlock"] {
+    gap: 0.65rem;
+}
+
+.st-key-dashboard_header button {
+    min-height: 2.65rem;
+}
+
+.st-key-dashboard_header [data-testid="stPopover"] button {
+    border-color: var(--teamnl-blue);
+    color: var(--teamnl-blue);
+    font-weight: 600;
+}
+
+.st-key-dashboard_header .header-divider {
+    height: 1px;
+    margin: 0.1rem 0 0.05rem;
+    background: #E1E7EF;
+}
+
+.st-key-dashboard_header [data-testid="stSegmentedControl"] button {
+    min-height: 2.45rem;
+}
+
+@media (max-width: 760px) {
+    .st-key-dashboard_header button {
+        min-height: 2.4rem;
+    }
+}
 </style>
 """
 

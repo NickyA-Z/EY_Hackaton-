@@ -1,6 +1,6 @@
 # backend
 
-Logic behind the Location Agent views in `sea_dashboard/` (no Streamlit code here).
+Logic behind the Location Agent views in `frontend/` (no Streamlit code here).
 
 | Module | Job | Data |
 | --- | --- | --- |

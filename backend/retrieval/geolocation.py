@@ -8,6 +8,7 @@ import streamlit as st
 
 GEO_DATA_DIRECTORY = (
     Path(__file__).resolve().parents[2]
+    / "data"
     / "geo_data"
     / "data"
     / "la28"

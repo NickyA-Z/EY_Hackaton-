@@ -1,10 +1,11 @@
 # LA28 Location Agent dashboard
 
-Top row: the coach's race-prep flow — **Coach file → Venue map → Venue rules →
-Coach brief → Sailor brief → Strategy overview → Live** (`frontend/agent_views.py`,
-logic in `../backend`, see `../backend/README.md`). Second row: the marine-data
-views below (Map layer, Point chart, Geolocation). Picking a venue in Coach file
-sets the shared latitude/longitude.
+The compact top navigation groups the coach's race-prep flow into **Coach file**,
+**Venue** (Map and Rules), **Briefs** (Coach and Sailor), **Strategy**, and
+**Live** (`frontend/agent_views.py`, logic in `../backend`, see
+`../backend/README.md`). A second toolbar switches between **Map**, **Points**,
+and **Location**. Picking a venue in Coach file sets the shared coordinates,
+which can also be edited from the location popover.
 
 
 This Streamlit dashboard runs locally and retrieves historical marine forecast
@@ -44,18 +45,18 @@ PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt 
 
 ## Dashboard controls
 
-1. Enter the latitude and longitude in the top header.
-2. Press **Map layer** to open the regional-map view, choose a layer and
+1. Open the coordinate popover to review or edit the shared latitude and longitude.
+2. Select **Map** in the data toolbar to open the regional-map view, choose a layer and
    historical date, then press **Load map**.
-3. Press **Point chart** to open the point-data view, choose a date range and
+3. Select **Points** to open the point-data view, choose a date range and
    variable, then press **Retrieve data**.
-4. Press **Geolocation** to select an official LA28 sailing area from the
+4. Select **Location** to choose an official LA28 sailing area from the
    local terrain and bathymetry JSON, then press **Use this location** to apply
    its coordinates to the other views.
 5. Inspect the point summary, table, and time-series chart or download the
    result as CSV.
 
-The three header buttons switch between independent views while preserving the
+The three data-tool segments switch between independent views while preserving the
 latest loaded results. In the map view, changing the layer or historical date
 reloads an existing map for that selection. **Current · Nov 3** resets the map
 to the latest available date. Geolocation options are read only from

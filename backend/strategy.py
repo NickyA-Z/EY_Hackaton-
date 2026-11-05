@@ -9,7 +9,14 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA = Path(__file__).resolve().parent.parent / "src" / "conditions_June_2026" / "data" / "raw"
+DATA = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "src"
+    / "conditions_June_2026"
+    / "data"
+    / "raw"
+)
 HISTORY_YEARS = range(2021, 2026)
 LIVE_YEAR = 2026
 
