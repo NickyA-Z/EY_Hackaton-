@@ -1,0 +1,8 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# intermediate downloads (re-created by the pipeline when needed)
+data/*/raw/
+*.part
