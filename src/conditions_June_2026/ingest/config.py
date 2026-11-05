@@ -12,6 +12,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
+REPO_ROOT = BASE_DIR.parent.parent
+
+# Data that lives outside data/raw and is read in place (no copies).
+# Only used when ingesting the real RAW_DIR, never for test folders.
+EXTERNAL_DIRS = {
+    "gps_track": REPO_ROOT / "sailsync_api_results",   # SailSync ILCA 7 tracks, 19 Jul 2026
+}
 
 # Months (1-12) the demo covers; rows outside these UTC months are dropped in run.py.
 REQUESTED_MONTHS = (6, 7)

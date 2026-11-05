@@ -3,11 +3,13 @@
 What the ingest layer (`ingest/`) produces from the files in `data/raw/`, and how to use it.
 
 ```
-data/raw/  (4 native formats)  ──►  ingest/<source>.py parse()  ──►  run.py  ──►  data/processed/
+data/raw/  (native formats)  ──►  ingest/<source>.py parse()  ──►  run.py  ──►  data/processed/
   metar/*.csv          METAR text                                      observations.parquet
   noaa_coops/*.csv     CO-OPS CSV                                      tide_events.parquet
-  ndbc/*.txt.gz        NDBC fixed-width
+  ndbc/*.txt.gz        NDBC fixed-width                                tracks.parquet
   open_meteo/*.json    Open-Meteo JSON
+  tracks/**/*.csv|gpx  GPS tracks (CSV or GPX)
+../../sailsync_api_results/  SailSync tracks, read in place (config.EXTERNAL_DIRS)
 ```
 
 Regenerate with:
@@ -99,6 +101,38 @@ Tide **predictions** for high and low water. These are events, not observations,
 | 2026-06-15 22:31 | 9410660 | 0.656 | L |
 
 ---
+
+## 2b. `tracks.parquet`
+
+GPS tracks of boats. **One row = one GPS fix of one boat.**
+
+| column | type | meaning |
+|---|---|---|
+| `time_utc` | datetime, tz = UTC | time of the fix |
+| `lat`, `lon` | float | position |
+| `source` | string | `sailsync` (CSV tracks) or `gpx` |
+| `track_id` | string | one boat in one session, e.g. `2796_15377` (SailSync session_track) or the file name |
+| `sailor`, `nation`, `sail_no` | string | from the SailSync file name (`…_Matt_Wearn_AUS_199015.csv`) or the GPX `<name>`, nullable |
+| `is_top_finisher` | bool | the file sits in a `winners` folder (SailSync: the 4 top finishers) |
+| `speed_kn` | float | speed over ground from the previous fix. NaN on the first fix, after a gap > 30 s, or for a jump > 30 kn |
+| `course_deg` | float | course over ground (direction moving **to**), 0–360. NaN when not moving |
+| `is_sample` | bool | hand-made sample file |
+
+Key: `(source, track_id, time_utc)` is unique.
+
+Current contents: 44 ILCA 7 tracks from the San Pedro Olympic Classes Regatta.
+- 105,437 fixes, about one every 1.7 s.
+- 19 July 2026, 21:05–00:21 UTC (14:05–17:21 local).
+- 4 top finishers.
+
+Parsers:
+- `ingest/sailsync.py` reads SailSync CSV and any CSV with a time column plus lat and lon/lng. Epoch time is UTC. An ISO time without a zone is assumed to be UTC, with a warning.
+- `ingest/gpx.py` reads GPX.
+- Both use `ingest/tracks.py` for speed and course.
+
+The SailSync files are read **in place** from `sailsync_api_results/` (repo root), not copied into `data/raw`. Tracks added through the inbox go to `data/raw/tracks/`.
+
+Caveat: the maximum speeds (up to ~13 kn) probably include being towed in after racing, or GPS noise. Use medians, or cut the tracks to the race windows in `probe_report.json`, before comparing sailors.
 
 ## 3. What happens to the raw values
 
@@ -212,4 +246,6 @@ export ANTHROPIC_API_KEY=...                 # optional: lets Claude classify un
    - `run.py` applies `is_sample` from the manifest.
 5. **Reject:** the file is moved to `data/inbox/.rejected/`. Nothing is deleted automatically.
 
-Categories without a parser yet (`gps_track`, `geo_raster`, `coach_notes`, `other_tabular`) are stored under `data/raw/tracks`, `geo`, `notes` or `other`. They are not loaded into the tables until a parser is added.
+GPS tracks (`gps_track` for CSV, `gpx_track` for GPX) go to `data/raw/tracks/` and into `tracks.parquet`.
+
+Categories without a parser yet (`geo_raster`, `coach_notes`, `other_tabular`) are stored under `data/raw/geo`, `notes` or `other`. They are not loaded into the tables until a parser is added.
