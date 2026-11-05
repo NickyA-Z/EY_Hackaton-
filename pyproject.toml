@@ -1,0 +1,140 @@
+[project]
+name = "ey-hackathon"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "certifi==2026.10.23",
+    "charset-normalizer==3.5.2",
+    "idna==3.20",
+    "iniconfig==2.3.1",
+    "numpy==2.5.4",
+    "packaging==26.3",
+    "pandas==3.1.1",
+    "pluggy==1.7.0",
+    "pyarrow==26.0.1",
+    "pygments==2.21.0",
+    "pytest==9.2.0",
+    "python-dateutil==4.0.0",
+    "requests==2.34.2",
+    "ruff>=0.17.4",
+    "tzdata==2026.6",
+    "urllib3==2.8.0",
+]
+
+[project.scripts]
+ey-hackathon = "ey_hackathon:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+# ---- Core behaviour ----
+line-length = 120
+indent-width = 4
+target-version = "py312"
+# auto-fix imports and formatting issues
+fix = true
+
+# Always fail CI on violations
+preview = false
+
+# Exclude common generated / vendor paths
+exclude = [
+  ".git",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".venv",
+  "venv",
+  "build",
+  "dist",
+  "__pycache__",
+]
+
+# ---- Formatting (Black-compatible) ----
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+# Format code blocks inside docstrings
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+# ---- Linting ----
+[tool.ruff.lint]
+
+# ✅ Strict but sane rule set
+select = [
+  # Core correctness
+  "E",    # pycodestyle errors
+  "F",    # pyflakes
+  "W",    # warnings
+
+  # Imports
+  "I",    # isort
+
+  # Modern Python
+  "UP",   # pyupgrade
+
+  # Bug prevention
+  "B",    # flake8-bugbear
+  "SIM",  # logical simplifications
+  "C4",   # comprehensions
+  "TID",  # tidy imports
+
+  # Code quality
+  # <<< MISSING: unreadable line(s) between "# Code quality" and "N" >>>
+  "N",    # naming
+  "ARG",  # unused arguments
+  "ERA",  # commented-out code
+  "PL",   # pylint-style checks (safe subset)
+]
+
+# ❌ Explicitly reject low-signal / controversial rules
+ignore = [
+  "E501",    # line length handled by formatter
+  "B905",    # strict zip(strict=...) is noisy in practice
+  "PLR0913", # too many arguments (false positives)
+  "PLR2004", # magic values (context-dependent)
+  "SIM105",  # try/except simplification (can harm clarity)
+]
+
+# CI should auto-fix what is safe
+fixable = ["ALL"]
+unfixable = []
+
+# ---- Imports ----
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+known-first-party = ["src"]  # ✅ change if needed
+
+# ---- Naming ----
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["classmethod"]
+staticmethod-decorators = ["staticmethod"]
+
+# ---- Arguments ----
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
+# ---- Pylint rules (safe subset only) ----
+[tool.ruff.lint.pylint]
+max-returns = 6
+max-branches = 12
+max-statements = 50
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+markers = [
+  "integration: marks tests that call external LLM/vector services",
+]
