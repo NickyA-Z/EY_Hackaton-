@@ -19,6 +19,16 @@ def render_current_map(payload, height=650):
     )
 
 
+def combine_layers(grids, **options):
+    """One payload that overlays several single-layer grids (same bounds, same hours).
+
+    Options: start_frame (hour index to open on) and autoplay (False = start paused).
+    """
+    shared = {key: grids[0][key] for key in
+              ("bounds", "latitudes", "longitudes", "rows", "columns", "requested_location")}
+    return {**shared, "title": " + ".join(grid["title"] for grid in grids), "layers": grids, **options}
+
+
 CURRENT_MAP_HTML = r"""
 <!doctype html>
 <html>
@@ -59,6 +69,9 @@ CURRENT_MAP_HTML = r"""
     }
     .gradient { width: 150px; height: 7px; border-radius: 5px; margin: 6px 0 4px; background: linear-gradient(90deg,#61e5dc,#b6e94b,#ffc247,#ff6b46); }
     .legend-values { display: flex; justify-content: space-between; color: #91a6ac; }
+    .legend-row + .legend-row { margin-top: 9px; }
+    .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .readout { white-space: pre; }
     .readout {
       position: absolute; z-index: 800; left: 16px; bottom: 20px; color: #bcd0d3; background: rgba(3,18,27,.78);
       border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 8px 10px; font: 600 10px/1.45 ui-monospace, monospace;
@@ -82,7 +95,7 @@ CURRENT_MAP_HTML = r"""
     <div class="slider-row"><input id="timeSlider" type="range" min="0" step="1"><span class="hour" id="hourLabel">—</span></div>
   </div>
   <div class="readout" id="readout">Move over the map · click for details</div>
-  <div class="legend"><span id="legendTitle">VALUE</span><div class="gradient"></div><div class="legend-values"><span id="legendMin">0</span><span id="legendMax">1.0</span></div></div>
+  <div class="legend" id="legend"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -92,7 +105,10 @@ CURRENT_MAP_HTML = r"""
     const columns = field.columns;
     const latitudes = field.latitudes;
     const longitudes = field.longitudes;
-    const frames = field.frames;
+    // One layer per grid; a plain single grid is a one-layer overlay. All layers share bounds and hours.
+    const layers = field.layers && field.layers.length ? field.layers : [field];
+    const multi = layers.length > 1;
+    const frames = layers[0].frames;
     // Optional payload keys: start_frame (open on this hour) and autoplay (false = start paused).
     let frameIndex = Math.min(Math.max(0, field.start_frame ?? frames.length - 1), Math.max(0, frames.length - 1));
     let playing = field.autoplay ?? true;
@@ -103,7 +119,7 @@ CURRENT_MAP_HTML = r"""
       let west = Infinity;
       let east = -Infinity;
 
-      frames.forEach((frame) => {
+      layers.forEach((layer) => layer.frames.forEach((frame) => {
         (frame.value || []).forEach((value, index) => {
           if (value === null || value === undefined || !Number.isFinite(Number(value))) return;
           const row = Math.floor(index / columns);
@@ -116,7 +132,7 @@ CURRENT_MAP_HTML = r"""
           west = Math.min(west, longitude);
           east = Math.max(east, longitude);
         });
-      });
+      }));
 
       if (![south, north, west, east].every(Number.isFinite)) {
         return L.latLngBounds(
@@ -207,12 +223,25 @@ CURRENT_MAP_HTML = r"""
     const hourLabel = document.getElementById('hourLabel');
     const playButton = document.getElementById('playButton');
     const readout = document.getElementById('readout');
-    const minimumValue = Number(field.minimum_value ?? 0);
-    const maximumValue = Number(field.maximum_value ?? 0);
-    document.getElementById('layerTitle').textContent = `${field.title} FIELD`.toUpperCase();
-    document.getElementById('legendTitle').textContent = `${field.legend_label} · ${field.unit}`;
-    document.getElementById('legendMin').textContent = minimumValue.toFixed(1);
-    document.getElementById('legendMax').textContent = maximumValue.toFixed(1);
+    layers.forEach((layer) => {
+      layer.min = Number(layer.minimum_value ?? 0);
+      layer.max = Number(layer.maximum_value ?? 0);
+      layer.rgb = layer.color || [97, 229, 220];
+      layer.particles = [];
+    });
+    document.getElementById('layerTitle').textContent =
+      `${layers.map((layer) => layer.title).join(' + ')} ${multi ? 'OVERLAY' : 'FIELD'}`.toUpperCase();
+    // Single layer: the classic speed ramp. Several layers: each keeps its own hue, brightness = magnitude.
+    document.getElementById('legend').innerHTML = layers.map((layer) => {
+      const [r, g, b] = layer.rgb;
+      const gradient = multi
+        ? `linear-gradient(90deg, rgba(${r},${g},${b},.3), rgb(${r},${g},${b}))`
+        : 'linear-gradient(90deg,#61e5dc,#b6e94b,#ffc247,#ff6b46)';
+      const swatch = multi ? `<i class="swatch" style="background:rgb(${r},${g},${b})"></i>` : '';
+      return `<div class="legend-row"><span>${swatch}${layer.legend_label} · ${layer.unit}</span>` +
+        `<div class="gradient" style="background:${gradient}"></div>` +
+        `<div class="legend-values"><span>${layer.min.toFixed(1)}</span><span>${layer.max.toFixed(1)}</span></div></div>`;
+    }).join('');
     slider.max = Math.max(0, frames.length - 1);
     slider.value = frameIndex;
 
@@ -229,9 +258,13 @@ CURRENT_MAP_HTML = r"""
     }
     updateTimeUi();
 
-    function colorForValue(value, opacity = .9) {
-      const range = Math.max(.0001, maximumValue - minimumValue);
-      const ratio = Math.max(0, Math.min(1, (value - minimumValue) / range));
+    function colorForValue(layer, value, opacity = .9) {
+      const range = Math.max(.0001, layer.max - layer.min);
+      const ratio = Math.max(0, Math.min(1, (value - layer.min) / range));
+      if (multi) {
+        const [r, g, b] = layer.rgb;
+        return `rgba(${r},${g},${b},${opacity * (.3 + .7 * ratio)})`;
+      }
       const stops = [[97,229,220],[182,233,75],[255,194,71],[255,107,70]];
       const scaled = ratio * (stops.length - 1);
       const index = Math.min(stops.length - 2, Math.floor(scaled));
@@ -240,7 +273,7 @@ CURRENT_MAP_HTML = r"""
       return `rgba(${color[0]},${color[1]},${color[2]},${opacity})`;
     }
 
-    function sampleField(latitude, longitude) {
+    function sampleField(latitude, longitude, layer) {
       if (latitude < bounds.south || latitude > bounds.north || longitude < bounds.west || longitude > bounds.east) return null;
       const x = (longitude - bounds.west) / (bounds.east - bounds.west) * (columns - 1);
       const y = (latitude - bounds.south) / (bounds.north - bounds.south) * (rows - 1);
@@ -250,13 +283,13 @@ CURRENT_MAP_HTML = r"""
       const ty = y - y0;
       const indices = [y0 * columns + x0, y0 * columns + x0 + 1, (y0 + 1) * columns + x0, (y0 + 1) * columns + x0 + 1];
       const weights = [(1-tx)*(1-ty), tx*(1-ty), (1-tx)*ty, tx*ty];
-      const frame = frames[frameIndex];
+      const frame = layer.frames[Math.min(frameIndex, layer.frames.length - 1)];
       let u = 0, v = 0, value = 0, weight = 0;
       indices.forEach((index, position) => {
         const hasValue = frame.value[index] !== null;
-        const hasVector = field.mode === 'scalar' || (frame.u[index] !== null && frame.v[index] !== null);
+        const hasVector = layer.mode === 'scalar' || (frame.u[index] !== null && frame.v[index] !== null);
         if (hasValue && hasVector) {
-          if (field.mode !== 'scalar') {
+          if (layer.mode !== 'scalar') {
             u += frame.u[index] * weights[position];
             v += frame.v[index] * weights[position];
           }
@@ -268,12 +301,11 @@ CURRENT_MAP_HTML = r"""
       return { u: u / weight, v: v / weight, value: value / weight };
     }
 
-    let particles = [];
-    function resetParticle(particle, randomAge = true) {
+    function resetParticle(particle, layer, randomAge = true) {
       for (let attempt = 0; attempt < 20; attempt += 1) {
         particle.lat = bounds.south + Math.random() * (bounds.north - bounds.south);
         particle.lon = bounds.west + Math.random() * (bounds.east - bounds.west);
-        if (sampleField(particle.lat, particle.lon)) break;
+        if (sampleField(particle.lat, particle.lon, layer)) break;
       }
       particle.age = randomAge ? Math.floor(Math.random() * 100) : 0;
       return particle;
@@ -290,7 +322,12 @@ CURRENT_MAP_HTML = r"""
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       scalarContext.setTransform(ratio, 0, 0, ratio, 0, 0);
       const particleCount = Math.max(350, Math.min(1100, Math.round(size.x * size.y / 750)));
-      particles = field.mode === 'scalar' ? [] : Array.from({ length: particleCount }, () => resetParticle({}, true));
+      const perLayer = Math.max(300, Math.round(particleCount / layers.length));
+      layers.forEach((layer) => {
+        layer.particles = layer.mode === 'scalar'
+          ? []
+          : Array.from({ length: perLayer }, () => resetParticle({}, layer, true));
+      });
       context.clearRect(0, 0, size.x, size.y);
       scalarContext.clearRect(0, 0, size.x, size.y);
       fieldDirty = true;
@@ -301,19 +338,21 @@ CURRENT_MAP_HTML = r"""
     function drawScalarField() {
       const size = map.getSize();
       scalarContext.clearRect(0, 0, size.x, size.y);
-      const frame = frames[frameIndex];
-      for (let row = 0; row < rows - 1; row += 1) {
-        for (let column = 0; column < columns - 1; column += 1) {
-          const indices = [row * columns + column, row * columns + column + 1, (row + 1) * columns + column, (row + 1) * columns + column + 1];
-          const values = indices.map(index => frame.value[index]).filter(value => value !== null);
-          if (!values.length) continue;
-          const value = values.reduce((sum, item) => sum + item, 0) / values.length;
-          const topLeft = map.latLngToContainerPoint([latitudes[row + 1], longitudes[column]]);
-          const bottomRight = map.latLngToContainerPoint([latitudes[row], longitudes[column + 1]]);
-          scalarContext.fillStyle = colorForValue(value, .58);
-          scalarContext.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x + 1, bottomRight.y - topLeft.y + 1);
+      layers.filter((layer) => layer.mode === 'scalar').forEach((layer) => {
+        const frame = layer.frames[Math.min(frameIndex, layer.frames.length - 1)];
+        for (let row = 0; row < rows - 1; row += 1) {
+          for (let column = 0; column < columns - 1; column += 1) {
+            const indices = [row * columns + column, row * columns + column + 1, (row + 1) * columns + column, (row + 1) * columns + column + 1];
+            const values = indices.map(index => frame.value[index]).filter(value => value !== null);
+            if (!values.length) continue;
+            const value = values.reduce((sum, item) => sum + item, 0) / values.length;
+            const topLeft = map.latLngToContainerPoint([latitudes[row + 1], longitudes[column]]);
+            const bottomRight = map.latLngToContainerPoint([latitudes[row], longitudes[column + 1]]);
+            scalarContext.fillStyle = colorForValue(layer, value, .58);
+            scalarContext.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x + 1, bottomRight.y - topLeft.y + 1);
+          }
         }
-      }
+      });
       fieldDirty = false;
     }
 
@@ -325,44 +364,44 @@ CURRENT_MAP_HTML = r"""
         updateTimeUi();
         fieldDirty = true;
       }
+      if (fieldDirty) drawScalarField();
 
-      if (field.mode === 'scalar') {
+      const vectorLayers = layers.filter((layer) => layer.mode !== 'scalar');
+      if (!vectorLayers.length) {
         context.clearRect(0, 0, size.x, size.y);
-        if (fieldDirty) drawScalarField();
         requestAnimationFrame(animate);
         return;
       }
 
-      scalarContext.clearRect(0, 0, size.x, size.y);
       context.globalCompositeOperation = 'destination-out';
       context.fillStyle = 'rgba(0,0,0,.075)';
       context.fillRect(0, 0, size.x, size.y);
       context.globalCompositeOperation = 'source-over';
       context.lineWidth = 1.15;
 
-      particles.forEach((particle) => {
-        const vector = sampleField(particle.lat, particle.lon);
+      vectorLayers.forEach((layer) => layer.particles.forEach((particle) => {
+        const vector = sampleField(particle.lat, particle.lon, layer);
         if (!vector || vector.value < .001 || particle.age > 115) {
-          resetParticle(particle, false);
+          resetParticle(particle, layer, false);
           return;
         }
         const previous = map.latLngToContainerPoint([particle.lat, particle.lon]);
-        const visualScale = .00155;
+        const visualScale = .00155 * (layer.visual_scale ?? 1);
         const latitudeRadians = particle.lat * Math.PI / 180;
         particle.lat += vector.v * visualScale;
         particle.lon += vector.u * visualScale / Math.max(.35, Math.cos(latitudeRadians));
         particle.age += 1;
         const next = map.latLngToContainerPoint([particle.lat, particle.lon]);
         if (next.x < 0 || next.y < 0 || next.x > size.x || next.y > size.y) {
-          resetParticle(particle, false);
+          resetParticle(particle, layer, false);
           return;
         }
         context.beginPath();
         context.moveTo(previous.x, previous.y);
         context.lineTo(next.x, next.y);
-        context.strokeStyle = colorForValue(vector.value);
+        context.strokeStyle = colorForValue(layer, vector.value);
         context.stroke();
-      });
+      }));
       requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate);
@@ -372,27 +411,38 @@ CURRENT_MAP_HTML = r"""
       scopeMapToLoadedData();
       resizeCanvas();
     });
+
+    // Value (and direction, for vector layers) of every layer at one point.
+    function samplesAt(latlng) {
+      return layers
+        .map((layer) => ({ layer, sample: sampleField(latlng.lat, latlng.lng, layer) }))
+        .filter((entry) => entry.sample)
+        .map(({ layer, sample }) => ({
+          layer,
+          value: `${sample.value.toFixed(2)} ${layer.unit}`,
+          direction: layer.mode === 'scalar' ? null : (Math.atan2(sample.u, sample.v) * 180 / Math.PI + 360) % 360,
+        }));
+    }
     map.on('mousemove', (event) => {
-      const sample = sampleField(event.latlng.lat, event.latlng.lng);
-      if (!sample) { readout.textContent = 'No model data at this point'; return; }
+      const samples = samplesAt(event.latlng);
+      if (!samples.length) { readout.textContent = 'No model data at this point'; return; }
       const position = `${event.latlng.lat.toFixed(3)}°, ${event.latlng.lng.toFixed(3)}°`;
-      if (field.mode === 'scalar') {
-        readout.textContent = `${position}  ·  ${sample.value.toFixed(2)} ${field.unit}`;
-      } else {
-        const direction = (Math.atan2(sample.u, sample.v) * 180 / Math.PI + 360) % 360;
-        readout.textContent = `${position}  ·  ${sample.value.toFixed(2)} ${field.unit}  ·  ${direction.toFixed(0)}°`;
-      }
+      const line = (entry) => `${entry.value}${entry.direction === null ? '' : `  ·  ${entry.direction.toFixed(0)}°`}`;
+      readout.textContent = multi
+        ? [position, ...samples.map((entry) => `${entry.layer.title}: ${line(entry)}`)].join('\n')
+        : `${position}  ·  ${line(samples[0])}`;
     });
     map.on('click', (event) => {
-      const sample = sampleField(event.latlng.lat, event.latlng.lng);
-      if (!sample) return;
-      let content = `<b>${sample.value.toFixed(2)} ${field.unit}</b>`;
-      if (field.mode !== 'scalar') {
-        const direction = (Math.atan2(sample.u, sample.v) * 180 / Math.PI + 360) % 360;
-        content += `<br>${direction.toFixed(0)}° toward`;
-      }
-      content += `<br>${formatTime(frames[frameIndex].time)}`;
-      L.popup().setLatLng(event.latlng).setContent(content).openOn(map);
+      const samples = samplesAt(event.latlng);
+      if (!samples.length) return;
+      const content = samples.map((entry) => {
+        const [r, g, b] = entry.layer.rgb;
+        const dot = multi ? `<span style="color:rgb(${r},${g},${b})">●</span> ${entry.layer.title}: ` : '';
+        const direction = entry.direction === null ? '' : `<br>${entry.direction.toFixed(0)}° toward`;
+        return `${dot}<b>${entry.value}</b>${direction}`;
+      }).join('<br>');
+      L.popup().setLatLng(event.latlng)
+        .setContent(`${content}<br>${formatTime(frames[frameIndex].time)}`).openOn(map);
     });
     playButton.textContent = playing ? 'PAUSE' : 'PLAY';
     slider.addEventListener('input', () => { frameIndex = Number(slider.value); lastFrameAdvance = performance.now(); fieldDirty = true; updateTimeUi(); });

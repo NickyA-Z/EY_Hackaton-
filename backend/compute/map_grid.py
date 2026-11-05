@@ -4,7 +4,11 @@ import math
 
 import streamlit as st
 
-from backend.retrieval.marine_api import fetch_grid_points
+from backend.retrieval.marine_api import (
+    MARINE_API_URL,
+    WEATHER_ARCHIVE_URL,
+    fetch_grid_points,
+)
 
 MAP_LAYERS = {
     "Ocean currents": {
@@ -13,6 +17,8 @@ MAP_LAYERS = {
         "direction": "ocean_current_direction",
         "direction_type": "toward",
         "unit": "kn",
+        "speed_unit": "kn",
+        "color": (64, 170, 255),
         "legend": "CURRENT SPEED",
         "description": (
             "Particles show where the current flows; colour shows speed."
@@ -24,6 +30,7 @@ MAP_LAYERS = {
         "direction": "wave_direction",
         "direction_type": "from",
         "unit": "m",
+        "color": (255, 159, 67),
         "legend": "WAVE HEIGHT",
         "description": "Particles show wave propagation; colour shows height.",
     },
@@ -33,6 +40,7 @@ MAP_LAYERS = {
         "direction": "wind_wave_direction",
         "direction_type": "from",
         "unit": "m",
+        "color": (192, 132, 252),
         "legend": "WIND-WAVE HEIGHT",
         "description": (
             "Particles show wind-wave propagation; colour shows height."
@@ -44,8 +52,23 @@ MAP_LAYERS = {
         "direction": "swell_wave_direction",
         "direction_type": "from",
         "unit": "m",
+        "color": (74, 222, 128),
         "legend": "SWELL HEIGHT",
         "description": "Particles show swell propagation; colour shows height.",
+    },
+    "Wind": {
+        "mode": "directional",
+        "magnitude": "wind_speed_10m",
+        "direction": "wind_direction_10m",
+        "direction_type": "from",
+        "unit": "kn",
+        "speed_unit": "kn",
+        "color": (245, 245, 250),
+        "legend": "WIND SPEED",
+        "description": "Particles show where the 10 m wind blows (ERA5 reanalysis); brightness shows speed.",
+        "source_url": WEATHER_ARCHIVE_URL,  # not a marine variable
+        "max_snap": 0.2,  # ERA5 grid is coarser than the marine grid
+        "visual_scale": 0.15,  # knots are ~10x the current/wave magnitudes; keep particles readable
     },
 }
 
@@ -62,10 +85,10 @@ def _axis(start, end, count):
 def regional_bounds(latitude, longitude):
     """Bias the LA view offshore so the current field fills most of the map."""
     return {
-        "south": latitude - 0.75,
-        "north": latitude + 0.35,
-        "west": longitude - 1.65,
-        "east": longitude + 0.25,
+        "south": max(-90.0, latitude - 0.75),  # the API rejects coordinates beyond the poles / date line
+        "north": min(90.0, latitude + 0.35),
+        "west": max(-180.0, longitude - 1.65),
+        "east": min(180.0, longitude + 0.25),
     }
 
 
@@ -95,6 +118,7 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         ]
         value_variable = configuration["magnitude"]
 
+    max_snap = configuration.get("max_snap", 0.11)
     bounds = regional_bounds(latitude, longitude)
     latitudes = _axis(bounds["south"], bounds["north"], GRID_ROWS)
     longitudes = _axis(bounds["west"], bounds["east"], GRID_COLUMNS)
@@ -108,7 +132,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         selected_date,
         variables,
         batch_size=REQUEST_BATCH_SIZE,
-        velocity_unit="kn" if layer_name == "Ocean currents" else None,
+        velocity_unit=configuration.get("speed_unit"),
+        url=configuration.get("source_url", MARINE_API_URL),
     )
 
     if len(results) != len(coordinates):
@@ -140,8 +165,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
             snapped_too_far = (
                 returned_latitude is None
                 or returned_longitude is None
-                or abs(returned_latitude - requested_latitude) > 0.11
-                or abs(returned_longitude - requested_longitude) > 0.11
+                or abs(returned_latitude - requested_latitude) > max_snap
+                or abs(returned_longitude - requested_longitude) > max_snap
             )
             if value is None or snapped_too_far:
                 eastward.append(None)
@@ -203,6 +228,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         "minimum_value": round(minimum_value, 2),
         "maximum_value": round(maximum_value, 2),
         "unit": configuration["unit"],
+        "color": list(configuration["color"]),
+        "visual_scale": configuration.get("visual_scale", 1.0),
         "requested_location": {
             "latitude": latitude,
             "longitude": longitude,

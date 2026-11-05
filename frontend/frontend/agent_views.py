@@ -15,7 +15,7 @@ import requests  # noqa: E402
 from backend import analysis, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
 from backend.compute.map_grid import MAP_LAYERS, get_map_grid  # noqa: E402
-from frontend.frontend.current_map import render_current_map  # noqa: E402
+from frontend.frontend.current_map import combine_layers, render_current_map  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
 
@@ -89,6 +89,7 @@ def init_state():
         st.session_state._last_tod = st.session_state.time_of_day
     st.session_state.setdefault("uploaded", {})
     st.session_state.setdefault("pasted", [])
+    st.session_state.setdefault("hidden_demo", set())
     st.markdown(CSS, unsafe_allow_html=True)
 
 
@@ -138,9 +139,33 @@ def race_summary():
     return race_analysis.summary()
 
 
+def document_entries():
+    """(kind, doc) for every coach document: uploaded files, else the demo set, plus pasted transcripts."""
+    uploaded = [("uploaded", doc) for doc in st.session_state.uploaded.values()]
+    demo = [] if uploaded else [("demo", doc) for doc in demo_documents()
+                                if doc["name"] not in st.session_state.hidden_demo]
+    return uploaded + demo + [("pasted", doc) for doc in st.session_state.pasted]
+
+
 def documents():
-    uploaded = list(st.session_state.uploaded.values())
-    return (uploaded or demo_documents()) + st.session_state.pasted
+    return [doc for _, doc in document_entries()]
+
+
+def unique_name(name):
+    taken = {doc["name"] for doc in documents()}
+    candidate, number = name, 2
+    while candidate in taken:
+        candidate, number = f"{name} ({number})", number + 1
+    return candidate
+
+
+def delete_document(kind, name):
+    if kind == "uploaded":
+        st.session_state.uploaded.pop(name, None)
+    elif kind == "pasted":
+        st.session_state.pasted = [doc for doc in st.session_state.pasted if doc["name"] != name]
+    else:
+        st.session_state.hidden_demo.add(name)
 
 
 def current_insight():
@@ -165,24 +190,70 @@ def context_line():
             f"{st.session_state.boat_class}")
 
 
+LAYER_DOTS = {"Ocean currents": "🔵", "Waves": "🟠", "Wind waves": "🟣", "Swell": "🟢", "Wind": "⚪"}
+
+
+def layer_picker(key):
+    """Multi-select: every chosen marine layer is overlaid on the map in its own colour."""
+    st.session_state.setdefault(key, ["Ocean currents"])
+    st.session_state[key] = [name for name in st.session_state[key] if name in MAP_LAYERS]
+    return st.pills(
+        "Marine layers", list(MAP_LAYERS), selection_mode="multi", key=key,
+        format_func=lambda name: f"{LAYER_DOTS.get(name, '●')} {name}",
+        help="Click several layers to overlay them. Each keeps its own colour; brightness shows magnitude.",
+    )
+
+
+def describe_error(error):
+    """Short text for a failed API call (the raw error repeats a very long request URL)."""
+    response = getattr(error, "response", None)
+    if response is None:
+        return type(error).__name__
+    try:
+        reason = response.json().get("reason")
+    except ValueError:
+        reason = None
+    return f"HTTP {response.status_code}: {reason or response.reason}"
+
+
+def load_layer_grids(names, latitude, longitude, day):
+    """Grids for the chosen layers (cached per layer); a layer that fails is reported and skipped."""
+    if abs(latitude) > 85 or abs(longitude) > 180:
+        st.error(f"The shared location ({latitude:.3f}°, {longitude:.3f}°) is outside the map's range. "
+                 "Reset it in the 📍 menu, or pick a venue in Coach file.")
+        return []
+    grids = []
+    with st.spinner(f"Building {', '.join(name.lower() for name in names)}…"):
+        for name in names:
+            try:
+                grids.append(get_map_grid(latitude, longitude, day, name))
+            except requests.exceptions.RequestException as error:
+                st.error(f"Could not load {name}: {describe_error(error)}")
+            except (KeyError, ValueError) as error:
+                st.error(f"Unexpected {name} response: {error}")
+    return grids
+
+
+def layer_caption(names):
+    if len(names) == 1:
+        return MAP_LAYERS[names[0]]["description"]
+    return "Overlay: " + " · ".join(f"{LAYER_DOTS.get(name, '●')} {name}" for name in names)
+
+
 def render_layer_map(key, hour, height=420):
     """The Map-layer visualisation (same get_map_grid + render_current_map), opened on the race day at `hour`."""
-    layer = st.selectbox("Marine layer", list(MAP_LAYERS), key=f"{key}_layer")
-    latitude = st.session_state["selected_latitude"]
-    longitude = st.session_state["selected_longitude"]
-    try:
-        with st.spinner(f"Building the regional {layer.lower()} field…"):
-            grid = get_map_grid(latitude, longitude, st.session_state.race_day, layer)
-    except requests.exceptions.RequestException as error:
-        st.error(f"Could not load the regional map layer: {error}")
+    names = layer_picker(f"{key}_layers")
+    if not names:
+        st.info("Select at least one marine layer.")
         return
-    except (KeyError, ValueError) as error:
-        st.error(f"Unexpected regional map response: {error}")
+    grids = load_layer_grids(names, st.session_state["selected_latitude"],
+                             st.session_state["selected_longitude"], st.session_state.race_day)
+    if not grids:
         return
     stamp = f"T{hour:02d}:00"
-    start = next((i for i, frame in enumerate(grid["frames"]) if frame["time"].endswith(stamp)), None)
-    render_current_map({**grid, "start_frame": start, "autoplay": False}, height=height)
-    st.caption(f"{MAP_LAYERS[layer]['description']} Opened at {hour:02d}:00 on "
+    start = next((i for i, frame in enumerate(grids[0]["frames"]) if frame["time"].endswith(stamp)), None)
+    render_current_map(combine_layers(grids, start_frame=start, autoplay=False), height=height)
+    st.caption(f"{layer_caption([grid['title'] for grid in grids])} Opened at {hour:02d}:00 on "
                f"{st.session_state.race_day:%d %b}; use the slider for other hours.")
 
 
@@ -199,62 +270,92 @@ def upload_dialog():
                    "photos of whiteboards · transcripts")
         if st.button("Add files", type="primary", disabled=not uploads, width="stretch"):
             for upload in uploads:
-                st.session_state.uploaded[upload.name] = analyse_upload(upload.name, upload.getvalue())
+                data = upload.getvalue()
+                st.session_state.uploaded[upload.name] = {**analyse_upload(upload.name, data), "data": data}
             st.rerun()  # closes the dialog
     with transcript_tab:
         title = st.text_input("Title", value="Debrief transcript", key="paste_title")
         text = st.text_area("Transcript (plain text, VTT or SRT)", height=180, key="paste_text",
                             placeholder="Coach: How did the first beat go?\nSailor: Right paid after 12:00.")
         if st.button("Add transcript", type="primary", disabled=not text.strip(), width="stretch"):
-            st.session_state.pasted.append(analysis.analyse_pasted_transcript(title, text))
+            st.session_state.pasted.append(analysis.analyse_pasted_transcript(unique_name(title), text))
             st.rerun()
+
+
+def render_event_settings():
+    """Venue, class, race day and time of day (rendered inside the header's location menu)."""
+    st.selectbox("Venue", list(strategy.VENUES), key="venue", on_change=use_venue_coordinates)
+    spot = strategy.VENUES[st.session_state.venue]
+    st.selectbox("Class", spot["classes"], key="boat_class")
+    st.date_input("Race day", key="race_day", min_value=dt.date(2026, 6, 1), max_value=dt.date(2026, 6, 30),
+                  help="Hackathon mode: June 2026 is replayed as if live.")
+    st.segmented_control("Time of day", list(strategy.TIME_OF_DAY), key="time_of_day")
+
+
+IMAGE_TYPES = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+RAW_PREVIEW_TYPES = {".csv", ".gpx", ".xml"}
+
+
+@st.dialog("File preview", width="large")
+def preview_dialog(kind, name):
+    doc = next((d for k, d in document_entries() if k == kind and d["name"] == name), None)
+    if doc is None:
+        st.info("This file is no longer available.")
+        return
+    st.markdown(f"**{doc['name']}** · {doc['entity'] or 'Unknown type'} · {doc['method'] or doc['capability'] or ''}")
+    data, suffix = doc.get("data"), Path(name).suffix.lower()
+    if data and suffix in IMAGE_TYPES:
+        st.image(data)
+    if doc["text"]:
+        st.text_area("Text the agent read", doc["text"], height=320, disabled=True, key=f"preview_text_{kind}_{name}")
+    elif data and suffix in RAW_PREVIEW_TYPES:
+        st.code(data.decode("utf-8", errors="replace")[:5000], language=None)
+        st.caption("First 5,000 characters of the file.")
+    elif not data and doc["capability"] == "structured":
+        st.info("Demo placeholder: upload your own file to preview its content.")
+    elif not (data and suffix in IMAGE_TYPES):
+        st.info("No preview for this file type yet.")
+    if doc["error"]:
+        st.warning(doc["error"])
+    for topic, lines in doc["tags"].items():
+        st.markdown(f"**{topic}**: " + " · ".join(lines[:2]))
 
 
 def render_coach_file():
     st.header("Coach file")
     st.caption("Upload your own files. Each one is mapped to the common venue model, read by the right "
                "capability (text, picture of text, transcript) and tagged by topic.")
-    left, right = st.columns([1.7, 1], gap="large")
 
-    with left, st.container(border=True):
-        title, upload_col = st.columns([2, 1])
-        title.markdown("#### Coach files")
-        if upload_col.button("⬆ Upload", type="primary", width="stretch"):
+    with st.container(border=True):
+        title, upload_col = st.columns([4, 1], vertical_alignment="center")
+        title.markdown("#### Files")
+        if upload_col.button("Upload", icon=":material/upload:", type="primary", width="stretch"):
             upload_dialog()
-        if st.session_state.uploaded:
-            st.button("Clear uploads · back to demo set",
-                      on_click=lambda: st.session_state.uploaded.clear())
-        else:
+        entries = document_entries()
+        if not st.session_state.uploaded:
             st.caption("Showing the demo file set (sample texts marked DEMO SAMPLE). "
                        "Press **Upload** to add your own files.")
-        for doc in documents():
+            if st.session_state.hidden_demo:
+                st.button("Restore demo files", on_click=st.session_state.hidden_demo.clear)
+        if not entries:
+            st.info("No files yet.")
+        for kind, doc in entries:
+            info, preview_col, delete_col = st.columns([12, 0.7, 0.7], vertical_alignment="center")
             status = ('<span class="la-bad">Not read</span>' if doc["error"] else
                       '<span class="la-ok">Mapped</span>')
-            st.markdown(
+            info.markdown(
                 f'<div class="la-row"><div><span class="la-badge">{esc(doc["badge"])}</span>{esc(doc["name"])}'
                 f'</div><div class="la-small">→ {esc(doc["entity"] or "Unknown type")} · '
                 f'{esc(doc["method"] or doc["capability"] or "")} &nbsp; {status}</div></div>',
                 unsafe_allow_html=True)
+            if preview_col.button("", icon=":material/visibility:", key=f"preview_{kind}_{doc['name']}",
+                                  help="Preview", width="stretch"):
+                preview_dialog(kind, doc["name"])
+            delete_col.button("", icon=":material/delete:", key=f"delete_{kind}_{doc['name']}",
+                              help="Delete", width="stretch", on_click=delete_document,
+                              args=(kind, doc["name"]))
             if doc["error"]:
                 st.caption(f"⚠️ {doc['error']}")
-
-    with right, st.container(border=True):
-        st.markdown("#### Venue & event")
-        st.selectbox("Venue", list(strategy.VENUES), key="venue", on_change=use_venue_coordinates)
-        spot = strategy.VENUES[st.session_state.venue]
-        st.caption(f"Course centre {spot['lat']:.3f}° N, {abs(spot['lon']):.3f}° W "
-                   f"(`{spot['area']}`). Applied to the map and point chart.")
-        st.selectbox("Class", spot["classes"], key="boat_class",
-                     help="Demo focuses on one class; the list stays open for the demo.")
-        st.date_input("Race day", key="race_day", min_value=dt.date(2026, 6, 1),
-                      max_value=dt.date(2026, 6, 30),
-                      help="Hackathon mode: June 2026 is replayed as if live.")
-        st.segmented_control("Time of day", list(strategy.TIME_OF_DAY), key="time_of_day")
-        st.markdown('<div class="la-stat la-small">Public data joined automatically: Open-Meteo wind & '
-                    'cloud (June 2021–2025) · NOAA tides · NCEI bathymetry & terrain · SailSync race tracks'
-                    '</div>', unsafe_allow_html=True)
-        st.write("")
-        st.button("Analyse venue →", type="primary", width="stretch", on_click=go, args=("venue",))
 
     st.subheader("What the coach can upload")
     rows = analysis.checklist(documents())
@@ -264,7 +365,8 @@ def render_coach_file():
          for row in rows],
         hide_index=True, width="stretch")
     st.caption("Everything is optional except the sailing instructions; without uploads the agent "
-               "works from public data only.")
+               "works from public data only. Public data joined automatically: Open-Meteo wind & cloud "
+               "(June 2021–2025) · NOAA tides · NCEI bathymetry & terrain · SailSync race tracks.")
 
     tagged = [doc for doc in documents() if doc["tags"]]
     if tagged:

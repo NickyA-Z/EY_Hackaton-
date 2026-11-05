@@ -7,7 +7,6 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from backend.compute.map_grid import MAP_LAYERS, get_map_grid
 from backend.retrieval.geolocation import (
     GEO_DATA_DIRECTORY,
     load_geolocation_data,
@@ -18,7 +17,7 @@ from backend.retrieval.marine_api import (
     get_marine_data,
 )
 from frontend.frontend import agent_views
-from frontend.frontend.current_map import render_current_map
+from frontend.frontend.current_map import combine_layers, render_current_map
 from frontend.frontend.styles import apply_global_styles
 
 RESULT_VIEW_HEIGHT = 500
@@ -44,18 +43,10 @@ def render_header():
     st.session_state.setdefault("selected_longitude", -118.27)
 
     with st.container(border=True, key="dashboard_header"):
-        live_navigation, coach_navigation, venue_navigation, briefs_navigation, strategy_navigation = st.columns(
-            [0.8, 1.15, 1, 1, 1]
-        )
-
-        coach_navigation.button(
-            "Coach file",
-            key="show_coach_view",
-            type="primary" if active_view == "coach" else "secondary",
-            width="stretch",
-            on_click=select_view,
-            args=("coach",),
-        )
+        (
+            live_navigation, venue_navigation, briefs_navigation, strategy_navigation,
+            _, coach_navigation, location_column,
+        ) = st.columns([1, 1, 1, 1, 1.6, 0.32, 0.32], vertical_alignment="center")
 
         venue_label = {
             "venue": "Venue · Geoinformation",
@@ -120,13 +111,27 @@ def render_header():
             args=("live",),
         )
 
-        st.markdown('<div class="header-divider"></div>', unsafe_allow_html=True)
+        coach_navigation.button(
+            "",
+            icon=":material/upload_file:",
+            key="show_coach_view",
+            type="primary" if active_view == "coach" else "secondary",
+            width="stretch",
+            help="Coach file: upload, preview and delete files",
+            on_click=select_view,
+            args=("coach",),
+        )
 
-        _, location_column = st.columns([3, 2])
         latitude = st.session_state["selected_latitude"]
         longitude = st.session_state["selected_longitude"]
-        location_label = f"📍 {latitude:.3f}, {longitude:.3f}"
-        with location_column.popover(location_label, width="stretch"):
+        with location_column.popover(
+            "",
+            icon=":material/location_on:",
+            help=f"Venue, event and location · {latitude:.3f}, {longitude:.3f}",
+            width="stretch",
+        ):
+            st.caption("VENUE & EVENT")
+            agent_views.render_event_settings()
             st.caption("SHARED LOCATION")
             st.number_input(
                 "Latitude",
@@ -142,7 +147,7 @@ def render_header():
                 format="%.5f",
                 key="selected_longitude",
             )
-            st.caption("Used by the regional map and point analysis.")
+            st.caption("Picking a venue sets these coordinates. Used by the regional map and point analysis.")
 
     return (
         st.session_state["selected_latitude"],
@@ -242,18 +247,15 @@ def load_geo_data(area):
     latitude, longitude = float(area["lat"]), float(area["lon"])
     map_date = st.session_state["selected_map_date"]
     start_date = st.session_state["point_start_date"]
-    map_layer = st.session_state["selected_map_layer"]
+    map_layers = st.session_state["selected_map_layers"]
     variable = st.session_state["selected_point_variable"]
     if start_date > map_date:
         st.error("Points start date must be on or before the map date.")
         return
     with st.spinner("Loading location, map and points…"):
-        try:
-            st.session_state["map_grid"] = get_map_grid(latitude, longitude, map_date, map_layer)
-        except requests.exceptions.RequestException as error:
-            st.error(f"Could not load the regional map layer: {error}")
-        except (KeyError, ValueError) as error:
-            st.error(f"Unexpected regional map response: {error}")
+        st.session_state["map_grids"] = agent_views.load_layer_grids(
+            map_layers, latitude, longitude, map_date
+        )
         try:
             dataframe, response_data = get_marine_data(
                 latitude, longitude, start_date, map_date, variable
@@ -276,7 +278,7 @@ def load_geo_data(area):
         except (KeyError, ValueError) as error:
             st.error(f"Unexpected point data response: {error}")
     st.session_state["geo_loaded"] = {
-        "area": area["key"], "layer": map_layer, "map_date": map_date, "start_date": start_date,
+        "area": area["key"], "layers": map_layers, "map_date": map_date, "start_date": start_date,
     }
 
 
@@ -329,7 +331,6 @@ def render_geo_data():
 
     defaults = {
         "selected_geolocation": next(iter(areas)),
-        "selected_map_layer": "Ocean currents",
         "selected_point_variable": "wave_height",
         "selected_map_date": LATEST_MAP_DATE,
         "point_start_date": date(2026, 10, 20),
@@ -338,13 +339,11 @@ def render_geo_data():
         st.session_state.setdefault(key, value)
     if st.session_state["selected_geolocation"] not in areas:
         st.session_state["selected_geolocation"] = defaults["selected_geolocation"]
-    if st.session_state["selected_map_layer"] not in MAP_LAYERS:
-        st.session_state["selected_map_layer"] = defaults["selected_map_layer"]
     if st.session_state["selected_point_variable"] not in POINT_VARIABLES:
         st.session_state["selected_point_variable"] = defaults["selected_point_variable"]
 
-    area_column, layer_column, variable_column, start_column, date_column, load_column = st.columns(
-        [1.4, 1.2, 1.3, 1, 1, 0.9], vertical_alignment="bottom"
+    area_column, variable_column, start_column, date_column, load_column = st.columns(
+        [1.4, 1.3, 1, 1, 0.9], vertical_alignment="bottom"
     )
     area_key = area_column.selectbox(
         "Sailing area",
@@ -352,7 +351,6 @@ def render_geo_data():
         format_func=lambda key: key.replace("_", " ").title(),
         key="selected_geolocation",
     )
-    layer_column.selectbox("Marine layer", list(MAP_LAYERS), key="selected_map_layer")
     variable_column.selectbox(
         "Point variable",
         POINT_VARIABLES,
@@ -374,7 +372,11 @@ def render_geo_data():
         help="Applies the area's coordinates and loads location, map and points together.",
     )
 
-    if st.session_state.pop("geo_load_requested", False):
+    selected_layers = agent_views.layer_picker("selected_map_layers")
+    if not selected_layers:
+        st.info("Select at least one marine layer to load the map.")
+
+    if st.session_state.pop("geo_load_requested", False) and selected_layers:
         load_geo_data(areas[area_key])
 
     loaded = st.session_state.get("geo_loaded")
@@ -383,20 +385,20 @@ def render_geo_data():
         return
     area = areas.get(loaded["area"], areas[area_key])
     st.caption(
-        f"Loaded: {area['key'].replace('_', ' ').title()} · {loaded['layer']} · map "
+        f"Loaded: {area['key'].replace('_', ' ').title()} · {' + '.join(loaded['layers'])} · map "
         f"{loaded['map_date']} · points {loaded['start_date']} → {loaded['map_date']}"
     )
 
     st.markdown("#### 1 · Location")
     render_location_facts(area, bathymetry, terrain)
 
-    st.markdown(f"#### 2 · Regional map: {loaded['layer']}")
-    map_grid = st.session_state.get("map_grid")
-    if map_grid:
-        render_current_map(map_grid, height=RESULT_VIEW_HEIGHT)
+    st.markdown(f"#### 2 · Regional map: {' + '.join(loaded['layers'])}")
+    map_grids = st.session_state.get("map_grids")
+    if map_grids:
+        render_current_map(combine_layers(map_grids), height=RESULT_VIEW_HEIGHT)
         st.caption(
-            f"{MAP_LAYERS[loaded['layer']]['description']} Particle motion is visually "
-            "accelerated; use the play button or hour slider. Click the map for local details."
+            f"{agent_views.layer_caption([grid['title'] for grid in map_grids])} Particle motion is "
+            "visually accelerated; use the play button or hour slider. Click the map for local details."
         )
 
     st.markdown("#### 3 · Points")
