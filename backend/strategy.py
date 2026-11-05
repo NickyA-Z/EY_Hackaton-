@@ -34,6 +34,10 @@ VENUES = {
         "lat": 33.748, "lon": -118.140, "area": "belmont_shore",
         "classes": ["iQFoil men", "iQFoil women", "Formula Kite men", "Formula Kite women"],
     },
+    "Outside Breakwater (LA 2028)": {
+        "lat": 33.695, "lon": -118.235, "area": "outside_breakwater",
+        "classes": ["ILCA 7", "ILCA 6", "49er", "49erFX", "470 mixed", "Nacra 17"],
+    },
 }
 
 # ---------- small helpers ----------
