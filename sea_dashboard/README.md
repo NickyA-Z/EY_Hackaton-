@@ -1,4 +1,11 @@
-# LA28 Marine Conditions dashboard
+# LA28 Location Agent dashboard
+
+Top row: the coach's race-prep flow — **Coach file → Venue map → Venue rules →
+Coach brief → Sailor brief → Strategy overview → Live** (`frontend/agent_views.py`,
+logic in `../backend`, see `../backend/README.md`). Second row: the marine-data
+views below (Map layer, Point chart, Geolocation). Picking a venue in Coach file
+sets the shared latitude/longitude.
+
 
 This Streamlit dashboard runs locally and retrieves historical marine forecast
 data from Open-Meteo for a selected coordinate, date range, and marine
@@ -6,7 +13,8 @@ variable.
 
 The main view includes an Earth-style regional marine field. Directional layers
 use moving particles, while scalar layers use a colour surface. Use the embedded
-play button and hour slider to explore the end date selected in the sidebar.
+play button and hour slider to explore the historical map date selected in the
+map view.
 Click the map to inspect the local value and, when available, direction.
 
 ## Start the dashboard
@@ -17,36 +25,41 @@ From the project root:
 ./sea_dashboard/run_local.sh
 ```
 
-Then open <http://127.0.0.1:8501>.
+Then open <http://127.0.0.1:8502>.
 
 The launcher uses `uv` to create an isolated environment and install the
 packages from `requirements.txt`. To use an alternative port:
 
 ```bash
-PORT=8502 ./sea_dashboard/run_local.sh
+PORT=8503 ./sea_dashboard/run_local.sh
 ```
 
 ## Manual start
 
 ```bash
 cd sea_dashboard
-uv run --python 3.12 --with-requirements requirements.txt \
-  streamlit run dashboard.py
+PYTHONPATH=.. uv run --python 3.12 --with-requirements requirements.txt \
+  streamlit run frontend/dashboard.py
 ```
 
 ## Dashboard controls
 
-1. Enter the latitude and longitude in the sidebar.
-2. Select a start and end date.
-3. Select a **map layer** for the regional visualization.
-4. Select a separate **point variable** for the table and time-series chart.
-5. Press **Retrieve marine data** in the sidebar.
-6. Explore the regional map, then inspect the point summary, table, and
-   time-series chart or download the result as CSV.
+1. Enter the latitude and longitude in the top header.
+2. Press **Map layer** to open the regional-map view, choose a layer and
+   historical date, then press **Load map**.
+3. Press **Point chart** to open the point-data view, choose a date range and
+   variable, then press **Retrieve data**.
+4. Press **Geolocation** to select an official LA28 sailing area from the
+   local terrain and bathymetry JSON, then press **Use this location** to apply
+   its coordinates to the other views.
+5. Inspect the point summary, table, and time-series chart or download the
+   result as CSV.
 
-After the first retrieval, changing the map-layer selector automatically loads
-that layer. The point-variable selector only changes the point table/chart and
-is applied the next time **Retrieve marine data** is pressed.
+The three header buttons switch between independent views while preserving the
+latest loaded results. In the map view, changing the layer or historical date
+reloads an existing map for that selection. **Current · Nov 3** resets the map
+to the latest available date. Geolocation options are read only from
+`geo_data/data/la28/json`.
 
 ## Regional map layers
 
@@ -82,10 +95,14 @@ navigation.
 
 | File | Responsibility |
 | --- | --- |
-| `dashboard.py` | Streamlit controls, session state, metrics, tables, charts, and error presentation |
-| `marine_api.py` | Open-Meteo requests, layer definitions, caching, spatial grid construction, masking, and direction-to-vector conversion |
-| `current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
+| `frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
+| `frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
+| `frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
+| `../backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
+| `../backend/retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
+| `../backend/retrieval/geolocation.py` | Approved LA28 terrain and bathymetry JSON loading |
 | `run_local.sh` | Reproducible local launcher and dependency environment |
 
-This keeps external-data logic independent from presentation, so API changes
-can be handled without editing the map renderer or dashboard layout.
+The existing Location Agent layout remains the main interface. UI code is in
+`frontend/`; marine calculations and data retrieval are grouped with the
+existing root-level `backend/` package.

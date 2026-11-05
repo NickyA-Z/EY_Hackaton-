@@ -1,0 +1,9 @@
+DEMO SAMPLE - invented sailing-instructions excerpt, not the official LA28 document.
+
+1. Course areas: Course area A is inside the San Pedro breakwater, west of Angels Gate.
+2. Boats shall keep clear of the main shipping channel at Angels Gate at all times; this is an exclusion zone.
+3. The warning signal will be made 5 minutes before the starting signal.
+4. Time limit: boats failing to finish within 20 minutes after the first boat will be scored DNF.
+5. Race committee communication on VHF channel 72.
+6. A boat that breaks rule 6 shall take a one-turn penalty.
+7. All competitors must sign out before leaving and sign in after racing (safety check-out).

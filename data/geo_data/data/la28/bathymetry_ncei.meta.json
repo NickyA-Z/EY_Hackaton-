@@ -1,0 +1,11 @@
+{
+  "selected": {"oid": 165, "name": "orange_county_13_navd88_2015", "cellsize_arcsec": 0.333332986,
+               "date_completed": "2015-09-01", "coverage": 1.0, "vertical_datum": "NAVD88"},
+  "candidates": [
+    {"oid": 165, "name": "orange_county_13_navd88_2015", "cellsize_arcsec": 0.333332986, "date_completed": "2015-09-01", "coverage": null, "vertical_datum": "NAVD88"},
+    {"oid": 173, "name": "santa_monica_ca_navd_88", "cellsize_arcsec": 0.333332986, "date_completed": "2010-03-12", "coverage": null, "vertical_datum": "NAVD88"},
+    {"oid": 121, "name": "santa_monica_ca_mhw", "cellsize_arcsec": 0.333332986, "date_completed": "2010-03-12", "coverage": null, "vertical_datum": "MHW"},
+    {"oid": 196, "name": "socal_1as", "cellsize_arcsec": 1, "date_completed": "2013-07-08", "coverage": null, "vertical_datum": "see NCEI metadata (often NAVD88 or MHW)"},
+    {"oid": 197, "name": "socal_3as", "cellsize_arcsec": 3, "date_completed": "2013-07-08", "coverage": null, "vertical_datum": "see NCEI metadata (often NAVD88 or MHW)"}
+  ]
+}
