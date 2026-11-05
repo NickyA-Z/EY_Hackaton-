@@ -4,6 +4,8 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from backend.venue_time import open_meteo_to_local, open_meteo_to_local_labels
+
 
 MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine"
 
@@ -68,7 +70,8 @@ def get_marine_data(
     response.raise_for_status()
     data = response.json()
     dataframe = pd.DataFrame(data["hourly"])
-    dataframe["time"] = pd.to_datetime(dataframe["time"])
+    # The API labels times with one fixed offset (GMT-8 even in summer); use the real LA clock.
+    dataframe["time"] = open_meteo_to_local(dataframe["time"], data.get("utc_offset_seconds"))
     return dataframe, data
 
 
@@ -97,5 +100,9 @@ def fetch_grid_points(
         response = requests.get(MARINE_API_URL, params=params, timeout=60)
         response.raise_for_status()
         payload = response.json()
-        results.extend(payload if isinstance(payload, list) else [payload])
+        for point in payload if isinstance(payload, list) else [payload]:
+            hourly = point.get("hourly", {})
+            if "time" in hourly:   # relabel with the real LA clock so map hours match the briefs
+                hourly["time"] = open_meteo_to_local_labels(hourly["time"], point.get("utc_offset_seconds"))
+            results.append(point)
     return results

@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from backend.venue_time import open_meteo_to_local, utc_to_local
+
 DATA = (
     Path(__file__).resolve().parent.parent
     / "data"
@@ -59,9 +61,12 @@ def load_wind(years, point="racecourse_belmont"):
     for year in years:
         path = DATA / "open_meteo" / f"{point}_{year}06.json"
         if path.exists():
-            frames.append(pd.DataFrame(json.loads(path.read_text())["hourly"]))
+            payload = json.loads(path.read_text())
+            frame = pd.DataFrame(payload["hourly"])
+            # Labels are GMT-8 in these files; convert to the real LA clock (PDT in June).
+            frame["time"] = open_meteo_to_local(frame["time"], payload.get("utc_offset_seconds"))
+            frames.append(frame[frame["time"].dt.month == 6])  # drop the hour that spills into July
     df = pd.concat(frames, ignore_index=True)
-    df["time"] = pd.to_datetime(df["time"])
     df = df.rename(columns={"wind_speed_10m": "speed", "wind_direction_10m": "dir",
                             "wind_gusts_10m": "gust", "cloud_cover": "cloud"})
     df["date"] = df["time"].dt.date
@@ -77,8 +82,8 @@ def load_tides(years=range(2021, 2027)):
             frames.append(pd.read_csv(path, skipinitialspace=True))
     df = pd.concat(frames, ignore_index=True)
     df.columns = [column.strip() for column in df.columns]
-    # NOAA file is GMT; June in LA is PDT (UTC-7).
-    df["time"] = pd.to_datetime(df["Date Time"]) - pd.Timedelta(hours=7)
+    # NOAA file is GMT; convert with the LA rules (PDT in summer, PST in winter).
+    df["time"] = utc_to_local(df["Date Time"])
     return df[["time", "Type"]].sort_values("time").reset_index(drop=True)
 
 
