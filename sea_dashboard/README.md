@@ -36,17 +36,22 @@ uv run --python 3.12 --with-requirements requirements.txt \
 
 ## Dashboard controls
 
-1. Enter the latitude and longitude in the sidebar.
-2. Select a start and end date.
-3. Select a **map layer** for the regional visualization.
-4. Select a separate **point variable** for the table and time-series chart.
-5. Press **Retrieve marine data** in the sidebar.
-6. Explore the regional map, then inspect the point summary, table, and
-   time-series chart or download the result as CSV.
+1. Enter the latitude and longitude in the top header.
+2. Press **Map layer** to open the regional-map view, choose a layer and
+   historical date, then press **Load map**.
+3. Press **Point chart** to open the point-data view, choose a date range and
+   variable, then press **Retrieve data**.
+4. Press **Geolocation** to select an official LA28 sailing area from the
+   local terrain and bathymetry JSON, then press **Use this location** to apply
+   its coordinates to the other views.
+5. Inspect the point summary, table, and time-series chart or download the
+   result as CSV.
 
-After the first retrieval, changing the map-layer selector automatically loads
-that layer. The point-variable selector only changes the point table/chart and
-is applied the next time **Retrieve marine data** is pressed.
+The three header buttons switch between independent views while preserving the
+latest loaded results. In the map view, changing the layer or historical date
+reloads an existing map for that selection. **Current · Nov 3** resets the map
+to the latest available date. Geolocation options are read only from
+`geo_data/data/la28/json`.
 
 ## Regional map layers
 
