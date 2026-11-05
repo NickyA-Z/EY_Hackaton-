@@ -21,7 +21,7 @@ TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
 
 AGENT_VIEWS = {
     "coach": "Coach file",
-    "venue": "Venue map",
+    "venue": "Geoinformation",
     "rules": "Venue rules",
     "coach_brief": "Coach brief",
     "sailor_brief": "Sailor brief",
@@ -369,7 +369,7 @@ def insight_panel(insight, tide, label):
 
 
 def render_venue_map(render_live_overlay):
-    st.header("Venue map")
+    st.subheader("Venue map")
     c1, c2, c3 = st.columns([1.2, 1.2, 2.2])
     c1.segmented_control("Wind direction", strategy.SECTORS, key="wind_sector")
     c2.segmented_control("Time of day", [11, 13, 15], key="map_hour", format_func=lambda h: f"{h}:00")
@@ -472,7 +472,7 @@ def render_coach_brief():
     st.caption(f"{context_line()} · drafted from the venue map, history and your files. "
                "Ready for the 08:00 team briefing.")
     if brief is None:
-        st.warning("Pick a wind direction and hour with historic data on the Venue map first.")
+        st.warning("Pick a wind direction and hour with historic data in Venue · Geoinformation first.")
         return
     left, right = st.columns([2, 1], gap="medium")
     with left, st.container(border=True):
@@ -519,7 +519,7 @@ def render_sailor_brief():
     st.header("Sailor brief")
     st.caption(context_line())
     if brief is None:
-        st.warning("Pick a wind direction and hour with historic data on the Venue map first.")
+        st.warning("Pick a wind direction and hour with historic data in Venue · Geoinformation first.")
         return
     left, right = st.columns([1.6, 1], gap="large")
     with left:
@@ -617,7 +617,7 @@ def render_strategy_overview():
         f'<div class="{"done" if done else ""}">{"✓ " if done else ""}{esc(name)}</div>' for name, done in steps)
         + "</div>", unsafe_allow_html=True)
     if brief is None:
-        st.warning("Pick a wind direction and hour with historic data on the Venue map first.")
+        st.warning("Pick a wind direction and hour with historic data in Venue · Geoinformation first.")
         return
 
     render_what_if(insight)
@@ -678,7 +678,7 @@ def render_live():
     _, _, brief = current_brief()
     plan = st.session_state.get("plan")
     if brief is None or not plan:
-        st.warning("The briefing needs a valid wind direction and hour on the Venue map first.")
+        st.warning("The briefing needs a valid wind direction and hour in Venue · Geoinformation first.")
         return
     day = live_data()[live_data()["date"] == st.session_state.race_day]
     hours = day[day["hour"].between(9, 18)].to_dict("records")

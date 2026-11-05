@@ -24,22 +24,11 @@ from frontend.frontend.styles import apply_global_styles
 RESULT_VIEW_HEIGHT = 500
 EARLIEST_MAP_DATE = date(1940, 1, 1)
 LATEST_MAP_DATE = date(2026, 11, 3)
-DATA_VIEWS = {  # the regional map now lives in Live, Coach brief and Venue map
-    "Points": "point",
-    "Location": "geolocation",
-}
 
 
 def select_view(view):
     """Open one of the dashboard's main views."""
     st.session_state["active_view"] = view
-
-
-def select_data_view():
-    """Open the marine-data view selected in the compact tool switcher."""
-    selected_tool = st.session_state.get("data_navigation")
-    if selected_tool:
-        select_view(DATA_VIEWS[selected_tool])
 
 
 def select_latest_map_date():
@@ -74,13 +63,13 @@ def render_header():
         )
 
         venue_label = {
-            "venue": "Venue · Map",
+            "venue": "Venue · Geoinformation",
             "rules": "Venue · Rules",
         }.get(active_view, "Venue")
         with venue_navigation.popover(venue_label, width="stretch"):
             st.caption("VENUE")
             st.button(
-                "Map",
+                "Geoinformation",
                 key="show_venue_view",
                 type="primary" if active_view == "venue" else "secondary",
                 width="stretch",
@@ -138,22 +127,7 @@ def render_header():
 
         st.markdown('<div class="header-divider"></div>', unsafe_allow_html=True)
 
-        tools_column, location_column = st.columns([3, 2])
-        active_data_tool = next(
-            (label for label, view in DATA_VIEWS.items() if view == active_view),
-            None,
-        )
-        if st.session_state.get("data_navigation") != active_data_tool:
-            st.session_state["data_navigation"] = active_data_tool
-        tools_column.segmented_control(
-            "Marine data tools",
-            list(DATA_VIEWS),
-            key="data_navigation",
-            on_change=select_data_view,
-            label_visibility="collapsed",
-            width="stretch",
-        )
-
+        _, location_column = st.columns([3, 2])
         latitude = st.session_state["selected_latitude"]
         longitude = st.session_state["selected_longitude"]
         location_label = f"📍 {latitude:.3f}, {longitude:.3f}"
@@ -353,7 +327,7 @@ def render_point_result(result):
 
 def render_point_view(latitude, longitude):
     """Render point-chart controls and the latest point result."""
-    st.header("Point chart")
+    st.subheader("Point chart")
 
     if st.session_state.get("selected_point_variable") not in POINT_VARIABLES:
         st.session_state["selected_point_variable"] = "wave_height"
@@ -374,7 +348,6 @@ def render_point_view(latitude, longitude):
     selected_variable = variable_column.selectbox(
         "Point variable",
         POINT_VARIABLES,
-        index=POINT_VARIABLES.index("wave_height"),
         format_func=lambda variable: VARIABLE_LABELS[variable],
         key="selected_point_variable",
         help="Scalar marine conditions suited to historical time-series analysis.",
@@ -427,7 +400,7 @@ def render_point_view(latitude, longitude):
 
 def render_geolocation_view():
     """Render official LA28 area choices from the local geodata JSON."""
-    st.header("Geolocation")
+    st.subheader("Location")
     st.caption(
         "Choose an LA28 sailing area, then apply its coordinates to the map "
         "and point chart."
@@ -515,9 +488,16 @@ def main():
     if active_view == "coach":
         agent_views.render_coach_file()
     elif active_view == "venue":
-        agent_views.render_venue_map(
-            lambda: render_map_view(latitude, longitude, title=None)
-        )
+        st.header("Geoinformation")
+        venue_tab, points_tab, location_tab = st.tabs(["Venue map", "Points", "Location"])
+        with venue_tab:
+            agent_views.render_venue_map(
+                lambda: render_map_view(latitude, longitude, title=None)
+            )
+        with points_tab:
+            render_point_view(latitude, longitude)
+        with location_tab:
+            render_geolocation_view()
     elif active_view == "rules":
         agent_views.render_venue_rules(load_geolocation_data)
     elif active_view == "coach_brief":
@@ -526,12 +506,8 @@ def main():
         agent_views.render_sailor_brief()
     elif active_view == "overview":
         agent_views.render_strategy_overview()
-    elif active_view == "live":
+    else:  # "live" (and any view name from before the merge into Geoinformation)
         agent_views.render_live()
-    elif st.session_state["active_view"] == "point":
-        render_point_view(latitude, longitude)
-    else:
-        render_geolocation_view()
 
     st.caption(
         "Data: Open-Meteo Marine API. Ocean currents are modelled, "
