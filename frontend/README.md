@@ -3,8 +3,8 @@
 The compact top navigation groups the coach's race-prep flow into **Coach file**,
 **Venue** (Map and Rules), **Briefs** (Coach and Sailor), **Strategy**, and
 **Live** (`frontend/agent_views.py`, logic in `../backend`, see
-`../backend/README.md`). **Venue · Geoinformation** holds three tabs: Venue map, **Points** and
-**Location**. The regional
+`../backend/README.md`). **Venue · Geoinformation** shows the venue map and one **Load** control that
+fetches location geodata, the regional map and the point series together. The regional
 marine map (same logic as the former Map tool) is shown in **Live**, **Coach brief**
 and **Venue · Geoinformation**. **Strategy** has what-if toggles (wind, strength, sea breeze,
 risk appetite) and a scenario × appetite table. Picking a venue in Coach file sets the shared coordinates,
@@ -51,8 +51,8 @@ PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt 
 1. Open the coordinate popover to review or edit the shared latitude and longitude.
 2. Open **Live** or **Briefs · Coach** for the regional map on the race day (choose
    the marine layer above the map; it opens at the selected hour).
-3. In **Venue · Geoinformation**, open **Points** to open the point-data view, choose a date range and
-   variable, then press **Retrieve data**.
+3. In **Venue · Geoinformation**, choose the sailing area, marine layer, point variable
+   and dates, then press **Load** once: location, map and points appear together.
 4. In the same view, open **Location** to choose an official LA28 sailing area from the
    local terrain and bathymetry JSON, then press **Use this location** to apply
    its coordinates to the other views.

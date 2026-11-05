@@ -368,7 +368,7 @@ def insight_panel(insight, tide, label):
                 unsafe_allow_html=True)
 
 
-def render_venue_map(render_live_overlay):
+def render_venue_map(render_geo_data):
     st.subheader("Venue map")
     c1, c2, c3 = st.columns([1.2, 1.2, 2.2])
     c1.segmented_control("Wind direction", strategy.SECTORS, key="wind_sector")
@@ -393,9 +393,10 @@ def render_venue_map(render_live_overlay):
             st.button("Generate coach brief →", type="primary", width="stretch",
                       on_click=go, args=("coach_brief",))
 
-    st.subheader("Live data overlay")
-    st.caption("Open-Meteo marine model over the venue: currents, waves, swell, temperature or sea level.")
-    render_live_overlay()
+    st.subheader("Location, map & points")
+    st.caption("One Load fetches all three for the chosen sailing area: local geodata, the Open-Meteo "
+               "marine map and the point time series.")
+    render_geo_data()
 
 
 # ---------- 3. Venue rules ----------

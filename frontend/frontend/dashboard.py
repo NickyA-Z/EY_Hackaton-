@@ -31,11 +31,6 @@ def select_view(view):
     st.session_state["active_view"] = view
 
 
-def select_latest_map_date():
-    """Reset the historical map picker to the latest available date."""
-    st.session_state["selected_map_date"] = LATEST_MAP_DATE
-
-
 def select_geolocation(area):
     """Apply a JSON-defined LA28 area to the shared coordinates."""
     st.session_state["selected_latitude"] = float(area["lat"])
@@ -155,95 +150,6 @@ def render_header():
     )
 
 
-def render_map_view(latitude, longitude, title="Map layer"):
-    """Render the regional map controls and map result."""
-    if title:
-        st.header(title)
-
-    if st.session_state.get("selected_map_layer") not in MAP_LAYERS:
-        st.session_state["selected_map_layer"] = "Ocean currents"
-    selected_map_date = st.session_state.get("selected_map_date")
-    if (
-        not isinstance(selected_map_date, date)
-        or selected_map_date < EARLIEST_MAP_DATE
-        or selected_map_date > LATEST_MAP_DATE
-    ):
-        st.session_state["selected_map_date"] = LATEST_MAP_DATE
-
-    layer_column, date_column, latest_column, load_column = st.columns(
-        [1.5, 1.5, 1, 1]
-    )
-    map_layer = layer_column.selectbox(
-        "Marine layer",
-        list(MAP_LAYERS),
-        help="Controls the animated regional map.",
-        key="selected_map_layer",
-    )
-    map_date = date_column.date_input(
-        "Historical map date",
-        min_value=EARLIEST_MAP_DATE,
-        max_value=LATEST_MAP_DATE,
-        key="selected_map_date",
-        help=(
-            "Choose any available date from January 1, 1940 through "
-            "November 3, 2026."
-        ),
-    )
-    latest_column.write("")
-    latest_column.button(
-        "Current · Nov 3",
-        width="stretch",
-        on_click=select_latest_map_date,
-        help="Return the map to November 3, 2026.",
-    )
-    load_column.write("")
-    load_map = load_column.button(
-        "Load map",
-        type="primary",
-        width="stretch",
-    )
-
-    layer_configuration = MAP_LAYERS[map_layer]
-    st.subheader(f"Regional map: {map_layer}")
-    st.caption(
-        f"{layer_configuration['description']} Use the map's play button or "
-        f"hour slider to explore {map_date}."
-    )
-
-    map_signature = (latitude, longitude, str(map_date), map_layer)
-    stored_map_signature = st.session_state.get("map_signature")
-    should_load_map = load_map or (
-        st.session_state.get("map_grid") is not None
-        and stored_map_signature != map_signature
-    )
-
-    if should_load_map:
-        try:
-            with st.spinner(f"Building the regional {map_layer.lower()} field…"):
-                st.session_state["map_grid"] = get_map_grid(
-                    latitude,
-                    longitude,
-                    map_date,
-                    map_layer,
-                )
-                st.session_state["map_signature"] = map_signature
-        except requests.exceptions.RequestException as error:
-            st.error(f"Could not load the regional map layer: {error}")
-        except (KeyError, ValueError) as error:
-            st.error(f"Unexpected regional map response: {error}")
-
-    map_grid = st.session_state.get("map_grid")
-    if not map_grid:
-        st.info("Choose a layer and date, then press **Load map**.")
-        return
-
-    render_current_map(map_grid, height=RESULT_VIEW_HEIGHT)
-    st.caption(
-        "Particle motion is visually accelerated to make direction readable; "
-        "colour shows magnitude. Click the map for local details."
-    )
-
-
 def render_point_result(result):
     """Render a stored point-data response."""
     dataframe = result["dataframe"]
@@ -325,128 +231,69 @@ def render_point_result(result):
     st.caption(f"Source: Open-Meteo Marine API.{direction_note}")
 
 
-def render_point_view(latitude, longitude):
-    """Render point-chart controls and the latest point result."""
-    st.subheader("Point chart")
+def request_geo_load(area):
+    """Load-button callback: apply the sailing area's coordinates, then load on this run."""
+    select_geolocation(area)
+    st.session_state["geo_load_requested"] = True
 
-    if st.session_state.get("selected_point_variable") not in POINT_VARIABLES:
-        st.session_state["selected_point_variable"] = "wave_height"
 
-    start_column, end_column, variable_column, retrieve_column = st.columns(
-        [1, 1, 1.5, 1]
-    )
-    start_date = start_column.date_input(
-        "Start date",
-        value=date(2026, 10, 20),
-        key="point_start_date",
-    )
-    end_date = end_column.date_input(
-        "End date",
-        value=LATEST_MAP_DATE,
-        key="point_end_date",
-    )
-    selected_variable = variable_column.selectbox(
-        "Point variable",
-        POINT_VARIABLES,
-        format_func=lambda variable: VARIABLE_LABELS[variable],
-        key="selected_point_variable",
-        help="Scalar marine conditions suited to historical time-series analysis.",
-    )
-    retrieve_column.write("")
-    retrieve_data = retrieve_column.button(
-        "Retrieve data",
-        type="primary",
-        width="stretch",
-    )
-
-    if retrieve_data:
-        if start_date > end_date:
-            st.error("Start date must be before end date.")
-            return
-
+def load_geo_data(area):
+    """Fetch the regional map and the point series for one area; keep earlier results on error."""
+    latitude, longitude = float(area["lat"]), float(area["lon"])
+    map_date = st.session_state["selected_map_date"]
+    start_date = st.session_state["point_start_date"]
+    map_layer = st.session_state["selected_map_layer"]
+    variable = st.session_state["selected_point_variable"]
+    if start_date > map_date:
+        st.error("Points start date must be on or before the map date.")
+        return
+    with st.spinner("Loading location, map and points…"):
         try:
-            with st.spinner("Retrieving point data…"):
-                dataframe, response_data = get_marine_data(
-                    latitude,
-                    longitude,
-                    start_date,
-                    end_date,
-                    selected_variable,
-                )
+            st.session_state["map_grid"] = get_map_grid(latitude, longitude, map_date, map_layer)
+        except requests.exceptions.RequestException as error:
+            st.error(f"Could not load the regional map layer: {error}")
+        except (KeyError, ValueError) as error:
+            st.error(f"Unexpected regional map response: {error}")
+        try:
+            dataframe, response_data = get_marine_data(
+                latitude, longitude, start_date, map_date, variable
+            )
             st.session_state["point_result"] = {
                 "dataframe": dataframe,
                 "response_data": response_data,
-                "variable": selected_variable,
+                "variable": variable,
                 "start_date": start_date,
-                "end_date": end_date,
+                "end_date": map_date,
                 "latitude": latitude,
                 "longitude": longitude,
             }
         except requests.exceptions.HTTPError as error:
-            st.error(f"API request failed: {error}")
+            st.error(f"Point data request failed: {error}")
             if error.response is not None:
                 st.code(error.response.text)
         except requests.exceptions.RequestException as error:
             st.error(f"Network error: {error}")
         except (KeyError, ValueError) as error:
-            st.error(f"Unexpected API response: {error}")
-
-    point_result = st.session_state.get("point_result")
-    if point_result:
-        render_point_result(point_result)
-    else:
-        st.info("Choose the query settings and press **Retrieve data**.")
+            st.error(f"Unexpected point data response: {error}")
+    st.session_state["geo_loaded"] = {
+        "area": area["key"], "layer": map_layer, "map_date": map_date, "start_date": start_date,
+    }
 
 
-def render_geolocation_view():
-    """Render official LA28 area choices from the local geodata JSON."""
-    st.subheader("Location")
-    st.caption(
-        "Choose an LA28 sailing area, then apply its coordinates to the map "
-        "and point chart."
-    )
-
-    try:
-        datasets = load_geolocation_data()
-        bathymetry = datasets["bathymetry"]
-        terrain = datasets["terrain"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-        st.error(f"Could not load the LA28 geolocation data: {error}")
-        return
-
-    areas = {area["key"]: area for area in bathymetry["areas"]}
-    selection_column, apply_column = st.columns([3, 1])
-    selected_key = selection_column.selectbox(
-        "Sailing area",
-        list(areas),
-        format_func=lambda key: key.replace("_", " ").title(),
-        key="selected_geolocation",
-    )
-    selected_area = areas[selected_key]
-    apply_column.write("")
-    apply_column.button(
-        "Use this location",
-        type="primary",
-        width="stretch",
-        on_click=select_geolocation,
-        args=(selected_area,),
-    )
-
+def render_location_facts(area, bathymetry, terrain):
+    """Local geodata for one LA28 sailing area."""
+    key = area["key"]
     latitude_metric, longitude_metric, radius_metric, depth_metric = st.columns(4)
-    latitude_metric.metric("Latitude", f"{selected_area['lat']:.5f}")
-    longitude_metric.metric("Longitude", f"{selected_area['lon']:.5f}")
-    radius_metric.metric("Area radius", f"{selected_area['radius_km']:.1f} km")
-    depth = bathymetry["stats"]["value_at_area_centers"].get(selected_key)
+    latitude_metric.metric("Latitude", f"{area['lat']:.5f}")
+    longitude_metric.metric("Longitude", f"{area['lon']:.5f}")
+    radius_metric.metric("Area radius", f"{area['radius_km']:.1f} km")
+    depth = bathymetry["stats"]["value_at_area_centers"].get(key)
     depth_metric.metric(
         "Centre bathymetry",
         f"{depth:.1f} {bathymetry['units']}" if depth is not None else "N/A",
         help="Negative values are below the dataset's vertical datum.",
     )
-
-    st.subheader("Olympic sailing events")
-    st.write(" · ".join(selected_area["events"]))
-
-    st.subheader("Local geodata")
+    st.markdown("**Olympic sailing events:** " + " · ".join(area["events"]))
     bathymetry_column, terrain_column = st.columns(2)
     with bathymetry_column.container(border=True):
         st.markdown("**Bathymetry**")
@@ -456,7 +303,7 @@ def render_geolocation_view():
             f"{bathymetry['data_date']}"
         )
     with terrain_column.container(border=True):
-        terrain_value = terrain["stats"]["value_at_area_centers"].get(selected_key)
+        terrain_value = terrain["stats"]["value_at_area_centers"].get(key)
         st.markdown("**Terrain**")
         st.write(
             f"Centre value: {terrain_value:.1f} {terrain['units']}"
@@ -467,8 +314,95 @@ def render_geolocation_view():
             f"{terrain['provider']} · {terrain['vertical_datum']} · "
             f"{terrain['data_date']}"
         )
-
     st.caption(f"Local source folder: {GEO_DATA_DIRECTORY}")
+
+
+def render_geo_data():
+    """One control bar and one Load button for location, regional map and point series."""
+    try:
+        datasets = load_geolocation_data()
+        bathymetry, terrain = datasets["bathymetry"], datasets["terrain"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        st.error(f"Could not load the LA28 geolocation data: {error}")
+        return
+    areas = {area["key"]: area for area in bathymetry["areas"]}
+
+    defaults = {
+        "selected_geolocation": next(iter(areas)),
+        "selected_map_layer": "Ocean currents",
+        "selected_point_variable": "wave_height",
+        "selected_map_date": LATEST_MAP_DATE,
+        "point_start_date": date(2026, 10, 20),
+    }
+    for key, value in defaults.items():
+        st.session_state.setdefault(key, value)
+    if st.session_state["selected_geolocation"] not in areas:
+        st.session_state["selected_geolocation"] = defaults["selected_geolocation"]
+    if st.session_state["selected_map_layer"] not in MAP_LAYERS:
+        st.session_state["selected_map_layer"] = defaults["selected_map_layer"]
+    if st.session_state["selected_point_variable"] not in POINT_VARIABLES:
+        st.session_state["selected_point_variable"] = defaults["selected_point_variable"]
+
+    area_column, layer_column, variable_column, start_column, date_column, load_column = st.columns(
+        [1.4, 1.2, 1.3, 1, 1, 0.9], vertical_alignment="bottom"
+    )
+    area_key = area_column.selectbox(
+        "Sailing area",
+        list(areas),
+        format_func=lambda key: key.replace("_", " ").title(),
+        key="selected_geolocation",
+    )
+    layer_column.selectbox("Marine layer", list(MAP_LAYERS), key="selected_map_layer")
+    variable_column.selectbox(
+        "Point variable",
+        POINT_VARIABLES,
+        format_func=lambda variable: VARIABLE_LABELS[variable],
+        key="selected_point_variable",
+    )
+    start_column.date_input(
+        "Points from", min_value=EARLIEST_MAP_DATE, max_value=LATEST_MAP_DATE,
+        key="point_start_date",
+    )
+    date_column.date_input(
+        "Map date (points to)", min_value=EARLIEST_MAP_DATE, max_value=LATEST_MAP_DATE,
+        key="selected_map_date",
+        help="Any date from January 1, 1940 through November 3, 2026.",
+    )
+    load_column.button(
+        "Load", type="primary", width="stretch",
+        on_click=request_geo_load, args=(areas[area_key],),
+        help="Applies the area's coordinates and loads location, map and points together.",
+    )
+
+    if st.session_state.pop("geo_load_requested", False):
+        load_geo_data(areas[area_key])
+
+    loaded = st.session_state.get("geo_loaded")
+    if not loaded:
+        st.info("Choose the area, layer, variable and dates, then press **Load**.")
+        return
+    area = areas.get(loaded["area"], areas[area_key])
+    st.caption(
+        f"Loaded: {area['key'].replace('_', ' ').title()} · {loaded['layer']} · map "
+        f"{loaded['map_date']} · points {loaded['start_date']} → {loaded['map_date']}"
+    )
+
+    st.markdown("#### 1 · Location")
+    render_location_facts(area, bathymetry, terrain)
+
+    st.markdown(f"#### 2 · Regional map: {loaded['layer']}")
+    map_grid = st.session_state.get("map_grid")
+    if map_grid:
+        render_current_map(map_grid, height=RESULT_VIEW_HEIGHT)
+        st.caption(
+            f"{MAP_LAYERS[loaded['layer']]['description']} Particle motion is visually "
+            "accelerated; use the play button or hour slider. Click the map for local details."
+        )
+
+    st.markdown("#### 3 · Points")
+    point_result = st.session_state.get("point_result")
+    if point_result:
+        render_point_result(point_result)
 
 
 def main():
@@ -483,21 +417,13 @@ def main():
     st.caption("Race preparation, venue intelligence and live decision support.")
 
     agent_views.init_state()
-    latitude, longitude = render_header()
+    render_header()
     active_view = st.session_state["active_view"]
     if active_view == "coach":
         agent_views.render_coach_file()
     elif active_view == "venue":
         st.header("Geoinformation")
-        venue_tab, points_tab, location_tab = st.tabs(["Venue map", "Points", "Location"])
-        with venue_tab:
-            agent_views.render_venue_map(
-                lambda: render_map_view(latitude, longitude, title=None)
-            )
-        with points_tab:
-            render_point_view(latitude, longitude)
-        with location_tab:
-            render_geolocation_view()
+        agent_views.render_venue_map(render_geo_data)
     elif active_view == "rules":
         agent_views.render_venue_rules(load_geolocation_data)
     elif active_view == "coach_brief":
