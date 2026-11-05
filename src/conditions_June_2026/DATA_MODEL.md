@@ -63,17 +63,18 @@ Key: `(source, source_id, time_utc)` is unique.
 | `ndbc` | `46222` San Pedro | (33.614, -118.314) | 30 min | water temp, waves only (no anemometer) |
 | `open_meteo` | `racecourse_belmont`, `outside_breakwater`, `shore_belmont`, `inland_lakewood`, `palos_verdes` | model grid cell (see caveats) | hourly | wind, gust, air temp, cloud cover |
 
-### Current contents (June 2021–2026)
+### Current contents (June–July 2021–2026)
 
 | source | rows | first | last |
 |---|---|---|---|
-| coops | 11,187 | 2021-06-01 00:00 | 2026-06-30 23:00 |
-| metar | 5,044 | 2021-06-01 00:53 | 2026-06-30 23:53 |
-| ndbc | 34,514 | 2021-06-01 00:00 | 2026-06-30 23:56 |
-| open_meteo | 21,360 | 2021-06-01 08:00 | 2026-06-30 23:00 |
-| **total** | **72,105** | | |
+| coops | 23,209 | 2021-06-01 00:00 | 2026-07-31 23:00 |
+| metar | 10,087 | 2021-06-01 00:53 | 2026-07-31 23:53 |
+| ndbc | 69,696 | 2021-06-01 00:00 | 2026-07-31 23:56 |
+| open_meteo | 43,680 | 2021-06-01 08:00 | 2026-07-31 23:00 |
+| **total** | **146,672** | | |
 
-June 2026 is the "live" replay month; June 2021–2025 is history for statistics.
+Months come from `REQUESTED_MONTHS` in `ingest/config.py` (currently June and July).
+June–July 2026 is the "live" replay period; June–July 2021–2025 is history for statistics.
 
 ---
 
@@ -88,7 +89,7 @@ Tide **predictions** for high and low water. These are events, not observations,
 | `height_m` | float | metres above **MLLW** |
 | `type` | string | `H` = high, `L` = low |
 
-696 rows (about 4 per day). Example:
+1,415 rows (about 4 per day). Example:
 
 | time_utc | station_id | height_m | type |
 |---|---|---|---|
@@ -124,9 +125,9 @@ All unit conversions are in `ingest/units.py`.
 
 ### Steps in `run.py` after parsing
 
-1. **Month filter:** rows outside the requested UTC months (default June) are dropped. This removes 240 Open-Meteo rows that fall on 1 July in UTC.
-2. **Empty rows dropped:** rows with no measurement at all are removed. This removes 2,054 rows, mostly CO-OPS hours where the sensor was offline.
-3. **Merge:** rows with the same key are combined, taking the first non-null value per column. This is how CO-OPS `wind` and `air_temperature` files for the same station and hour become one row (4,038 merges).
+1. **Month filter:** rows outside the requested UTC months (`REQUESTED_MONTHS`, currently June and July) are dropped. This removes 240 Open-Meteo rows that fall on 1 August in UTC.
+2. **Empty rows dropped:** rows with no measurement at all are removed. This removes 3,714 rows, mostly CO-OPS hours where the sensor was offline.
+3. **Merge:** rows with the same key are combined, taking the first non-null value per column. This is how CO-OPS `wind` and `air_temperature` files for the same station and hour become one row (8,101 merges).
 4. **Calm rule:** `wind_dir_deg` is set to NaN wherever `wind_speed_kn == 0`, for every source.
 5. **Validation:** dtypes, required columns, plausible ranges (wind direction 0–360, wind speed 0–60 kn, …) and no duplicate keys. The run exits non-zero if a check fails.
 
@@ -135,12 +136,12 @@ All unit conversions are in `ingest/units.py`.
 ## 4. Caveats: read before analysing
 
 - **Open-Meteo points overlap.** `racecourse_belmont`, `outside_breakwater` and `shore_belmont` all snap to the same grid cell (33.7786, -118.097). Their data is identical except air temperature, so on a map they are one point, not three. `lat`/`lon` are the grid cell, not the requested point.
-- **Open-Meteo time offset is GMT-8, not PDT.** The files state `utc_offset_seconds = -28800`. This was verified by re-requesting with `timezone=GMT`. As a consequence, Open-Meteo has no data for 1 June 00:00–07:00 UTC in each year.
+- **Open-Meteo time offset is GMT-8, not PDT.** The files state `utc_offset_seconds = -28800`. This was verified by re-requesting with `timezone=GMT`. As a consequence, Open-Meteo has no data for 1 June 00:00–07:00 UTC in each year. (1 July has no gap: the June file's spill-over fills it.)
 - **No water temperature from CO-OPS.** The nearby stations don't offer that product, so `water_temp_c` comes only from the NDBC buoys.
 - **CO-OPS units are assumed.** The CSVs don't state units; they are metric because the downloader requests `units=metric`.
 - **Mixed time steps.** METAR is about hourly, NDBC is every 10 or 30 minutes, the others are hourly. Resample before comparing sources, e.g. `df.set_index("time_utc").groupby("source_id").resample("1h").mean(numeric_only=True)`.
 - **Pier stations differ a lot.** The piers are close together but their winds disagree strongly (e.g. Pier J 18.7 kn vs Pier F 2.7 kn in the same hour). This is not yet explained: it could be exposure or sheltering by port structures.
-- **Missing share per source:** METAR direction 21 % (calm or VRB), NDBC wind 25 % (46222 has no anemometer), CO-OPS air temperature 64 % (only one station measures it).
+- **Missing share per source:** METAR direction 22 % (calm or VRB), NDBC wind 24 % (46222 has no anemometer), CO-OPS air temperature 65 % (only one station measures it).
 - **Tide heights are MLLW-referenced.** The datum is not stored as a column.
 
 ---
