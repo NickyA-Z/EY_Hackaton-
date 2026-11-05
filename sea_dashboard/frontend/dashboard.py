@@ -18,6 +18,7 @@ from backend.retrieval.marine_api import (
 )
 from sea_dashboard.frontend import agent_views
 from sea_dashboard.frontend.current_map import render_current_map
+from sea_dashboard.frontend.styles import apply_global_styles
 
 RESULT_VIEW_HEIGHT = 500
 EARLIEST_MAP_DATE = date(1940, 1, 1)
@@ -425,6 +426,7 @@ def main():
         initial_sidebar_state="collapsed",
     )
 
+    apply_global_styles()
     st.title("LA28 Olympic Sailing — Location Agent")
     st.write(
         "Top row: the coach's race-prep flow. Second row: raw marine data, "
