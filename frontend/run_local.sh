@@ -16,5 +16,6 @@ exec uv run \
   --with-requirements frontend/requirements.txt \
   streamlit run frontend/frontend/dashboard.py \
   --server.address 127.0.0.1 \
+  --server.headless true \
   --server.port "${PORT:-8503}" \
   --browser.gatherUsageStats false

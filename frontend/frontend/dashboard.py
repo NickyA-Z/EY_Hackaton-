@@ -1,6 +1,7 @@
 """Streamlit entry point for the LA28 marine dashboard."""
 
 from datetime import date
+import json
 
 import pandas as pd
 import requests
@@ -23,8 +24,7 @@ from frontend.frontend.styles import apply_global_styles
 RESULT_VIEW_HEIGHT = 500
 EARLIEST_MAP_DATE = date(1940, 1, 1)
 LATEST_MAP_DATE = date(2026, 11, 3)
-DATA_VIEWS = {
-    "Map": "map",
+DATA_VIEWS = {  # the regional map now lives in Live, Coach brief and Venue map
     "Points": "point",
     "Location": "geolocation",
 }
@@ -528,8 +528,6 @@ def main():
         agent_views.render_strategy_overview()
     elif active_view == "live":
         agent_views.render_live()
-    elif active_view == "map":
-        render_map_view(latitude, longitude)
     elif st.session_state["active_view"] == "point":
         render_point_view(latitude, longitude)
     else:

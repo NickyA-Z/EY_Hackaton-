@@ -93,8 +93,9 @@ CURRENT_MAP_HTML = r"""
     const latitudes = field.latitudes;
     const longitudes = field.longitudes;
     const frames = field.frames;
-    let frameIndex = Math.max(0, frames.length - 1);
-    let playing = true;
+    // Optional payload keys: start_frame (open on this hour) and autoplay (false = start paused).
+    let frameIndex = Math.min(Math.max(0, field.start_frame ?? frames.length - 1), Math.max(0, frames.length - 1));
+    let playing = field.autoplay ?? true;
     let lastFrameAdvance = performance.now();
     function getLoadedDataBounds() {
       let south = Infinity;
@@ -393,6 +394,7 @@ CURRENT_MAP_HTML = r"""
       content += `<br>${formatTime(frames[frameIndex].time)}`;
       L.popup().setLatLng(event.latlng).setContent(content).openOn(map);
     });
+    playButton.textContent = playing ? 'PAUSE' : 'PLAY';
     slider.addEventListener('input', () => { frameIndex = Number(slider.value); lastFrameAdvance = performance.now(); fieldDirty = true; updateTimeUi(); });
     playButton.addEventListener('click', () => {
       playing = !playing;

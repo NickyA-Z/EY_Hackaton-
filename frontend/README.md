@@ -3,8 +3,10 @@
 The compact top navigation groups the coach's race-prep flow into **Coach file**,
 **Venue** (Map and Rules), **Briefs** (Coach and Sailor), **Strategy**, and
 **Live** (`frontend/agent_views.py`, logic in `../backend`, see
-`../backend/README.md`). A second toolbar switches between **Map**, **Points**,
-and **Location**. Picking a venue in Coach file sets the shared coordinates,
+`../backend/README.md`). A second toolbar switches between **Points** and **Location**. The regional
+marine map (same logic as the former Map tool) is shown in **Live**, **Coach brief**
+and **Venue · Map**. **Strategy** has what-if toggles (wind, strength, sea breeze,
+risk appetite) and a scenario × appetite table. Picking a venue in Coach file sets the shared coordinates,
 which can also be edited from the location popover.
 
 
@@ -46,8 +48,8 @@ PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt 
 ## Dashboard controls
 
 1. Open the coordinate popover to review or edit the shared latitude and longitude.
-2. Select **Map** in the data toolbar to open the regional-map view, choose a layer and
-   historical date, then press **Load map**.
+2. Open **Live** or **Briefs · Coach** for the regional map on the race day (choose
+   the marine layer above the map; it opens at the selected hour).
 3. Select **Points** to open the point-data view, choose a date range and
    variable, then press **Retrieve data**.
 4. Select **Location** to choose an official LA28 sailing area from the
@@ -56,7 +58,7 @@ PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt 
 5. Inspect the point summary, table, and time-series chart or download the
    result as CSV.
 
-The three data-tool segments switch between independent views while preserving the
+The data-tool segments switch between independent views while preserving the
 latest loaded results. In the map view, changing the layer or historical date
 reloads an existing map for that selection. **Current · Nov 3** resets the map
 to the latest available date. Geolocation options are read only from

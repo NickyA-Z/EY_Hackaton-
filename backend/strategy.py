@@ -273,3 +273,105 @@ def sky(cloud):
     if cloud < 90:
         return "Mostly cloudy"
     return "Overcast"
+
+
+# ---------- scenarios & risk appetite ----------
+
+STRENGTHS = {"Light": (0, 8), "Medium": (8, 14), "Strong": (14, 99)}
+BREEZE_TIMING = ["Early", "On time", "Late"]
+APPETITES = {  # highest scenario score (likelihood x impact) the team accepts without acting
+    "Conservative": 6,
+    "Balanced": 10,
+    "Aggressive": 15,
+}
+LEVERS = {  # how much each lever lowers likelihood / impact (screenshot: None 0, Prevent 2, ...)
+    "None": (0, 0),
+    "Hedge": (0, 1),
+    "Switch side": (0, 2),
+    "Plan B": (1, 1),
+}
+
+
+def strength_band(speed):
+    return next(name for name, (low, high) in STRENGTHS.items() if low <= speed < high)
+
+
+def scenario_approach(insight, strength, breeze, appetite):
+    """Race approach for one what-if: wind sector/hour (via insight), strength, breeze timing, appetite."""
+    side = insight.get("side", "Middle") if insight.get("n_days") else "Middle"
+    reliability = insight["kept_turning"] / insight["n_days"] if insight.get("n_days") else 0.5
+    if breeze == "Late":
+        side_now, note = "Middle", "Gradient wind until the sea breeze fills: stay central, keep options."
+    elif strength == "Light":
+        side_now, note = side, "Light air: sail to pressure first, the shift second."
+    elif strength == "Strong":
+        side_now, note = side, "Breeze on: the persistent side pays more; prioritise speed and clean tacks."
+    else:
+        side_now, note = side, "Normal breeze: play the persistent shift to the favoured side."
+
+    lean = {"Conservative": 0.55, "Balanced": 0.65, "Aggressive": 0.8}[appetite]
+    lean = 0.5 if side_now == "Middle" else round(min(0.9, lean * (0.6 + 0.4 * reliability)) * 20) / 20
+    commitment = ("Hedge 50/50" if lean <= 0.5 else
+                  f"Lean {int(lean * 100)}/{int(100 - lean * 100)} {side_now.lower()}")
+    start = {
+        ("Right", "Aggressive"): "Committee-boat end, tack to port straight away.",
+        ("Right", "Balanced"): "Boat-end third of the line, clear lane to tack.",
+        ("Right", "Conservative"): "Middle of the line with a clear lane, drift right.",
+        ("Left", "Aggressive"): "Pin end, lead the fleet left.",
+        ("Left", "Balanced"): "Pin-end third, hold starboard.",
+        ("Left", "Conservative"): "Middle of the line, lean left after clearing.",
+    }.get((side_now, appetite), "Middle of the line with a clear lane.")
+    corners = {"Conservative": "Never past the layline; tack back on every header.",
+               "Balanced": "Up to 2/3 to the layline before tacking back.",
+               "Aggressive": "Go to the layline on the favoured side."}[appetite]
+    trigger = (f"If the wind is not {insight.get('sector', '?')} ±20° by the start, "
+               "drop to the middle and play the shifts.")
+    return {"side": side_now, "commitment": commitment, "start": start, "first_beat": note,
+            "corners": corners, "plan_b": trigger, "lean": lean}
+
+
+def scenario_matrix(history, hour, base_sector, base_speed, appetite):
+    """Every wind scenario seen at this hour with likelihood x impact against the base plan."""
+    at_hour = history[history["hour"] == hour].copy()
+    at_hour["sector"] = at_hour["dir"].map(sector)
+    at_hour = at_hour[at_hour["sector"].isin(SECTORS)]
+    at_hour["band"] = at_hour["speed"].map(strength_band)
+    days = history["date"].nunique()
+    base_insight = venue_insight(history, base_sector, hour)
+    base_side, base_band = base_insight.get("side", "Middle"), strength_band(base_speed)
+    limit = APPETITES[appetite]
+    rows = []
+    for (wind_sector, band), group in at_hour.groupby(["sector", "band"]):
+        share = len(group) / days
+        likelihood = max(1, min(5, round(1 + share * 12)))  # ~33% of days -> 5
+        side = venue_insight(history, wind_sector, hour).get("side", "Middle")
+        steps = abs(SECTORS.index(wind_sector) - SECTORS.index(base_sector))
+        # impact on the plan: other side pays (+2), boat handling/strategy mode changes (+2), wind swings (+1/sector)
+        impact = min(5, 1 + (2 if side != base_side else 0) + (2 if band != base_band else 0) + min(steps, 2))
+        score = likelihood * impact
+        if score <= limit:
+            lever = "None"
+        elif side != base_side and side != "Middle":
+            lever = "Switch side" if appetite == "Aggressive" else "Hedge"
+        elif band == "Light":
+            lever = "Plan B"
+        else:
+            lever = "Hedge"
+        rows.append({"scenario": f"{wind_sector} {band.lower()}", "sector": wind_sector, "band": band,
+                     "days": len(group), "share": share, "side": side, "likelihood": likelihood,
+                     "impact": impact, "score": score, "within": score <= limit, "lever": lever})
+    if base_insight.get("n_days"):
+        late = base_insight["late_onset_days"] / base_insight["n_days"]
+        likelihood = max(1, min(5, round(1 + late * 12)))
+        score = likelihood * 4  # a late breeze turns the plan into plan B
+        rows.append({"scenario": "Sea breeze late (after 12:00)", "sector": base_sector, "band": base_band,
+                     "days": base_insight["late_onset_days"], "share": late, "side": "Middle",
+                     "likelihood": likelihood, "impact": 4, "score": score, "within": score <= limit,
+                     "lever": "None" if score <= limit else "Plan B"})
+    return sorted(rows, key=lambda row: -row["score"])
+
+
+def residual(row, lever):
+    cut_l, cut_i = LEVERS[lever]
+    likelihood, impact = max(1, row["likelihood"] - cut_l), max(1, row["impact"] - cut_i)
+    return likelihood * impact

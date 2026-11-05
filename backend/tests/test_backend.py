@@ -56,3 +56,18 @@ summary = race_analysis.summary()
 assert summary["races"] and summary["verdict"] in ("Left", "Right", "Middle")
 
 print("ok", insight["n_days"], brief["confidence"], summary["verdict"])
+
+# --- scenarios ---
+history = strategy.load_wind(strategy.HISTORY_YEARS)
+base = strategy.venue_insight(history, "SSW", 13)
+calm = strategy.scenario_approach(base, "Medium", "Late", "Aggressive")
+assert calm["side"] == "Middle" and calm["commitment"] == "Hedge 50/50"
+bold, careful = (strategy.scenario_approach(base, "Medium", "On time", a) for a in ("Aggressive", "Conservative"))
+assert bold["lean"] > careful["lean"]
+rows = strategy.scenario_matrix(history, 13, "SSW", base["speed"], "Balanced")
+assert rows and all(1 <= r["score"] <= 25 for r in rows)
+assert all(r["lever"] == "None" for r in rows if r["within"])
+assert strategy.residual(rows[0], "Plan B") <= rows[0]["score"]
+strict = strategy.scenario_matrix(history, 13, "SSW", base["speed"], "Conservative")
+assert sum(not r["within"] for r in strict) >= sum(not r["within"] for r in rows)
+print("scenarios ok", [(r["scenario"], r["score"], r["lever"]) for r in rows[:5]])

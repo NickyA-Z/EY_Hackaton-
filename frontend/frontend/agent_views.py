@@ -10,8 +10,12 @@ from pathlib import Path
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+import requests  # noqa: E402
+
 from backend import analysis, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
+from backend.compute.map_grid import MAP_LAYERS, get_map_grid  # noqa: E402
+from frontend.frontend.current_map import render_current_map  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
 
@@ -61,6 +65,7 @@ CSS = f"""
 DEFAULTS = {
     "venue": list(strategy.VENUES)[0], "race_day": dt.date(2026, 6, 15), "time_of_day": "Midday",
     "wind_sector": "SSW", "map_hour": 13, "layers": ["Wind", "Pressure", "Terrain effects"],
+    "wi_sector": "SSW", "wi_strength": "Medium", "wi_breeze": "On time", "risk_appetite": "Balanced",
 }
 
 
@@ -74,7 +79,8 @@ def init_state():
     for key in [*DEFAULTS, "boat_class"]:
         st.session_state[key] = st.session_state[key]
     # segmented controls return None when the active option is clicked again
-    for key in ("wind_sector", "map_hour", "time_of_day"):
+    for key in ("wind_sector", "map_hour", "time_of_day", "wi_sector", "wi_strength", "wi_breeze",
+                "risk_appetite"):
         if st.session_state[key] is None:
             st.session_state[key] = st.session_state.get(f"_prev_{key}", DEFAULTS[key])
         st.session_state[f"_prev_{key}"] = st.session_state[key]
@@ -157,6 +163,27 @@ def current_brief():
 def context_line():
     return (f"{st.session_state.venue.split(' (')[0]} · {st.session_state.race_day:%d %b %Y} · "
             f"{st.session_state.boat_class}")
+
+
+def render_layer_map(key, hour, height=420):
+    """The Map-layer visualisation (same get_map_grid + render_current_map), opened on the race day at `hour`."""
+    layer = st.selectbox("Marine layer", list(MAP_LAYERS), key=f"{key}_layer")
+    latitude = st.session_state["selected_latitude"]
+    longitude = st.session_state["selected_longitude"]
+    try:
+        with st.spinner(f"Building the regional {layer.lower()} field…"):
+            grid = get_map_grid(latitude, longitude, st.session_state.race_day, layer)
+    except requests.exceptions.RequestException as error:
+        st.error(f"Could not load the regional map layer: {error}")
+        return
+    except (KeyError, ValueError) as error:
+        st.error(f"Unexpected regional map response: {error}")
+        return
+    stamp = f"T{hour:02d}:00"
+    start = next((i for i, frame in enumerate(grid["frames"]) if frame["time"].endswith(stamp)), None)
+    render_current_map({**grid, "start_frame": start, "autoplay": False}, height=height)
+    st.caption(f"{MAP_LAYERS[layer]['description']} Opened at {hour:02d}:00 on "
+               f"{st.session_state.race_day:%d %b}; use the slider for other hours.")
 
 
 # ---------- 1. Coach file ----------
@@ -483,6 +510,9 @@ def render_coach_brief():
             st.markdown(f"Plan confidence: **{brief['confidence']}**")
         st.button("Start live monitoring →", type="primary", width="stretch", on_click=go, args=("live",))
 
+    st.subheader("Race-area conditions at the planned hour")
+    render_layer_map("brief_map", insight["hour"], height=420)
+
 
 def render_sailor_brief():
     insight, tide, brief = current_brief()
@@ -508,6 +538,68 @@ def render_sailor_brief():
 
 # ---------- 6. Strategy overview ----------
 
+def render_what_if(insight):
+    """Toggles for weather options and the team's risk appetite; shows how the approach changes."""
+    st.subheader("What if…")
+    c1, c2, c3, c4 = st.columns([1.5, 1.1, 1.1, 1.4])
+    c1.segmented_control("Wind direction", strategy.SECTORS, key="wi_sector")
+    c2.segmented_control("Wind strength", list(strategy.STRENGTHS), key="wi_strength")
+    c3.segmented_control("Sea breeze", strategy.BREEZE_TIMING, key="wi_breeze")
+    c4.segmented_control("Team risk appetite", list(strategy.APPETITES), key="risk_appetite")
+    state = st.session_state
+    what_if = strategy.venue_insight(history(), state.wi_sector, insight["hour"])
+    base = strategy.scenario_approach(insight, strategy.strength_band(insight["speed"]), "On time",
+                                      state.risk_appetite)
+    scenario = strategy.scenario_approach(what_if, state.wi_strength, state.wi_breeze, state.risk_appetite)
+    if not what_if["n_days"]:
+        st.caption(f"No June day in 2021–2025 had {state.wi_sector} at {insight['hour']}:00, so the "
+                   "side is unknown and the approach falls back to the middle.")
+    labels = {"side": "Favoured side", "commitment": "Commitment", "start": "Start",
+              "first_beat": "First beat", "corners": "How far to go", "plan_b": "Plan B trigger"}
+    cells = st.columns(3)
+    for index, (key, label) in enumerate(labels.items()):
+        changed = scenario[key] != base[key]
+        badge = '<span class="la-warn">changed</span>' if changed else '<span class="la-ok">as plan</span>'
+        cells[index % 3].markdown(f'<div class="la-card"><div class="la-small">{label} {badge}</div>'
+                                  f'<b>{esc(scenario[key])}</b></div>', unsafe_allow_html=True)
+    st.caption(f"Compared with the brief: {insight['sector']} at {insight['hour']}:00, "
+               f"{strategy.strength_band(insight['speed']).lower()} breeze, sea breeze on time, "
+               f"{state.risk_appetite.lower()} appetite.")
+
+
+def render_scenario_table(insight):
+    """Every wind scenario seen at this hour: likelihood x impact vs the team's appetite, with a lever per row."""
+    appetite = st.session_state.risk_appetite
+    rows = strategy.scenario_matrix(history(), insight["hour"], insight["sector"], insight["speed"], appetite)
+    st.subheader("Scenarios vs risk appetite")
+    st.caption(f"Likelihood (1–5, share of June days at {insight['hour']}:00) × impact on the plan (1–5) = "
+               f"score. {appetite} appetite accepts up to {strategy.APPETITES[appetite]}; pick a lever per "
+               "scenario to see the residual score.")
+    widths = [2.4, 0.6, 0.5, 0.5, 0.8, 1.2, 3.4, 0.8]
+    for column, title in zip(st.columns(widths), ["Scenario", "Days", "L", "I", "Score", "Appetite",
+                                                  "Lever", "Residual"]):
+        column.markdown(f'<div class="la-small"><b>{title}</b></div>', unsafe_allow_html=True)
+    for row in rows:
+        cols = st.columns(widths, vertical_alignment="center")
+        cols[0].markdown(f"**{row['scenario']}**  \n<span class='la-small'>favours {row['side'].lower()}</span>",
+                         unsafe_allow_html=True)
+        cols[1].write(row["days"])
+        cols[2].write(row["likelihood"])
+        cols[3].write(row["impact"])
+        chip = "la-ok" if row["within"] else "la-bad"
+        cols[4].markdown(f'<span class="{chip}">{row["score"]}</span>', unsafe_allow_html=True)
+        cols[5].markdown(f'<span class="la-small">{"within" if row["within"] else "outside"} appetite</span>',
+                         unsafe_allow_html=True)
+        key = f"lever_{appetite}_{row['scenario']}"
+        lever = cols[6].segmented_control("Lever", list(strategy.LEVERS), default=row["lever"], key=key,
+                                          label_visibility="collapsed") or "None"
+        left = strategy.residual(row, lever)
+        cols[7].markdown(f'<span class="{"la-ok" if left <= strategy.APPETITES[appetite] else "la-bad"}">'
+                         f'{left}</span>', unsafe_allow_html=True)
+    st.caption("Levers: None keeps the plan · Hedge stays closer to the middle (impact −1) · "
+               "Switch side commits to the other side (impact −2) · Plan B prepares the light-air / late-breeze "
+               "plan (likelihood −1, impact −1). Recommended levers are pre-selected.")
+
 def render_strategy_overview():
     insight, tide, brief = current_brief()
     st.header("Strategy overview")
@@ -527,6 +619,9 @@ def render_strategy_overview():
     if brief is None:
         st.warning("Pick a wind direction and hour with historic data on the Venue map first.")
         return
+
+    render_what_if(insight)
+    render_scenario_table(insight)
 
     plan, race, files = st.columns(3, gap="medium")
     with plan, st.container(border=True):
@@ -580,7 +675,7 @@ def render_strategy_overview():
 
 def render_live():
     st.header("Live strategy check")
-    _, tide, brief = current_brief()
+    _, _, brief = current_brief()
     plan = st.session_state.get("plan")
     if brief is None or not plan:
         st.warning("The briefing needs a valid wind direction and hour on the Venue map first.")
@@ -636,7 +731,7 @@ def render_live():
         if result["warning"]:
             st.warning(result["warning"], icon="📣")
 
-        view_col, map_col = st.columns([1, 2.2])
+        view_col, map_col = st.columns([1, 2.6])
         with view_col:
             offset = st.segmented_control("Map time", [0, 1, 2], default=0, key="live_offset",
                                           format_func=lambda h: "T0" if h == 0 else f"T+{h}")
@@ -644,8 +739,8 @@ def render_live():
             st.markdown(f'<div class="la-dark"><div class="la-small">{shown["time"]:%H:%M} · from '
                         f'{strategy.sector(shown["dir"])}</div><div class="big">{shown["speed"]:.0f} kt</div>'
                         f'Gusts {shown["gust"]:.0f} kt</div>', unsafe_allow_html=True)
-        map_col.markdown(venue_svg(shown["dir"], shown["speed"], plan["side"],
-                                   ["Wind", "Pressure", "Terrain effects"], tide["state"]), unsafe_allow_html=True)
+        with map_col:
+            render_layer_map("live_map", shown["time"].hour, height=440)
 
         st.markdown("#### Insight notifications")
         feed = [(index, check(index)) for index in range(last, -1, -1)]
