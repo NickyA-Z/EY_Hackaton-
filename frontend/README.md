@@ -53,17 +53,13 @@ PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt 
    the marine layer above the map; it opens at the selected hour).
 3. In **Venue · Geoinformation**, choose the sailing area, marine layer, point variable
    and dates, then press **Load** once: location, map and points appear together.
-4. In the same view, open **Location** to choose an official LA28 sailing area from the
-   local terrain and bathymetry JSON, then press **Use this location** to apply
-   its coordinates to the other views.
-5. Inspect the point summary, table, and time-series chart or download the
+4. Inspect the point summary, table, and time-series chart or download the
    result as CSV.
 
-The data-tool segments switch between independent views while preserving the
-latest loaded results. In the map view, changing the layer or historical date
-reloads an existing map for that selection. **Current · Nov 3** resets the map
-to the latest available date. Geolocation options are read only from
-`geo_data/data/la28/json`.
+**Load** also applies the sailing area's coordinates to the shared location, so
+Live and Coach brief use the same spot. Results stay until the next **Load**;
+the "Loaded: …" line shows which selection they belong to. Sailing areas are read
+only from the local geodata JSON.
 
 ## Regional map layers
 
