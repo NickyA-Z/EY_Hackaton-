@@ -33,6 +33,15 @@ VARIABLES = {
 }
 
 
+def sniff(name: str, head: str | None) -> float:
+    """Confidence that a file is an Open-Meteo hourly JSON response."""
+    if not head or not head.lstrip().startswith("{"):
+        return 0.0
+    keys = ('"hourly"', '"utc_offset_seconds"', '"generationtime_ms"')
+    hits = sum(k in head for k in keys)
+    return {3: 0.95, 2: 0.9}.get(hits, 0.0)
+
+
 def _to_utc(times: pd.Series, meta: dict) -> pd.Series:
     if meta.get("utc_offset_seconds") is not None:
         return units.local_to_utc(times, int(meta["utc_offset_seconds"]))

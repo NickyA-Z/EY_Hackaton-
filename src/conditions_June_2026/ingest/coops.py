@@ -28,6 +28,26 @@ def _station_from_name(path: Path) -> str:
     return m[1] if m else path.stem.split("_")[0]
 
 
+def _header(head: str | None) -> list[str]:
+    if not head or not head.strip():
+        return []
+    return [c.strip() for c in head.splitlines()[0].split(",")]
+
+
+def sniff(name: str, head: str | None) -> float:
+    """Confidence that a file is a CO-OPS met product (wind / air or water temperature)."""
+    cols = _header(head)
+    if cols[:1] == ["Date Time"] and {"Speed", "Air Temperature", "Water Temperature"} & set(cols):
+        return 0.95
+    return 0.0
+
+
+def sniff_tides(name: str, head: str | None) -> float:
+    """Confidence that a file is a CO-OPS tide high/low prediction CSV."""
+    cols = _header(head)
+    return 0.95 if cols[:1] == ["Date Time"] and {"Prediction", "Type"} <= set(cols) else 0.0
+
+
 def _read(path: Path) -> pd.DataFrame:
     bad_lines: list[list[str]] = []
     df = pd.read_csv(path, dtype=str, engine="python", skipinitialspace=True,

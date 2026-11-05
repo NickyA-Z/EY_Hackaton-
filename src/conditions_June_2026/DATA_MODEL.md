@@ -178,9 +178,38 @@ race = tides[tides["time_utc"].between("2026-06-15 18:00Z", "2026-06-16 01:00Z")
 The product's main point is that any coach file can join the same table:
 
 1. Create `ingest/<format>.py` with `parse(path) -> DataFrame` that ends with
-   `return schema.conform(df)`. Set `source`, `source_id`, `lat`/`lon` and
-   `is_sample=True` for hand-made samples.
+   `return schema.conform(df)`, and `sniff(name, head) -> float` (0–1 confidence
+   that a file has this format, used by the inbox).
 2. Add one `Source(...)` line in `ingest/registry.py`.
 3. Add a tiny fixture and a test in `tests/`.
 
 `run.py` warns about any file in `data/raw/` that no parser claims, so new formats don't go unnoticed.
+
+---
+
+## 7. Adding files through the inbox app
+
+```bash
+cd src/conditions_June_2026
+export ANTHROPIC_API_KEY=...                 # optional: lets Claude classify unknown files
+../../.venv/bin/streamlit run app/inbox_app.py
+```
+
+1. **Receive:** files dropped in the app, or copied into `data/inbox/`, are quarantined there. Names are sanitised and never overwritten. This folder is git-ignored.
+2. **Classify** (`ingest/classify.py`):
+   - First, each category's `sniff()` rule runs. A score of at least 0.9 wins without calling an LLM.
+   - Otherwise Claude (`claude-opus-5-5`) gets the file name, size and first 40 lines.
+     - The sample is treated as untrusted data.
+     - The answer is limited to the known category keys by a JSON schema and checked again in code.
+   - Without an API key, the app falls back to rules and manual choice.
+3. **Review:**
+   - The user sees the proposal and can correct the category, source id, period and product. The user can also tick `is_sample`.
+   - The app shows where the file will be stored and runs a dry parse: rows, rows inside `REQUESTED_MONTHS`, time range and validation problems.
+   - Duplicates and name clashes are blocked before confirming.
+4. **Confirm:**
+   - The file is moved to `data/raw/<subdir>/<normalised name>` and recorded in `data/raw/manifest.json` (hash, category, `is_sample`, who classified it, when).
+   - The tables are then rebuilt.
+   - `run.py` applies `is_sample` from the manifest.
+5. **Reject:** the file is moved to `data/inbox/.rejected/`. Nothing is deleted automatically.
+
+Categories without a parser yet (`gps_track`, `geo_raster`, `coach_notes`, `other_tabular`) are stored under `data/raw/tracks`, `geo`, `notes` or `other`. They are not loaded into the tables until a parser is added.

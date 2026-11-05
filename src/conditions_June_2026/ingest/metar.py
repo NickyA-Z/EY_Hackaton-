@@ -61,6 +61,16 @@ def parse_metar(report: str) -> dict:
     return out
 
 
+def sniff(name: str, head: str | None) -> float:
+    """Confidence 0-1 that a file is an IEM METAR CSV (used by the inbox classifier)."""
+    if not head:
+        return 0.0
+    first = head.splitlines()[0].strip().lower() if head.strip() else ""
+    if first.replace(" ", "") == "station,valid,metar":
+        return 0.95
+    return 0.6 if re.search(r"\b\d{6}Z\b.*\b(\d{5}|VRB\d{2})(G\d{2})?KT\b", head) else 0.0
+
+
 def parse(path: str | Path) -> pd.DataFrame:
     path = Path(path)
     bad_lines: list[list[str]] = []
