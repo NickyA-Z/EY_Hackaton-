@@ -53,4 +53,4 @@ SKY_COVER_PCT = {
 def local_to_utc(naive_times, utc_offset_seconds: int) -> pd.Series:
     """Shift naive local timestamps by a fixed offset and mark them as UTC."""
     t = pd.to_datetime(pd.Series(naive_times))
-    return (t - pd.Timedelta(seconds=utc_offset_seconds)).dt.tz_localize("UTC")
+    return (t - pd.to_timedelta(int(utc_offset_seconds), unit="s")).dt.tz_localize("UTC")
