@@ -45,8 +45,8 @@ def render_header():
     with st.container(border=True, key="dashboard_header"):
         (
             live_navigation, venue_navigation, briefs_navigation, strategy_navigation,
-            _, coach_navigation, location_column,
-        ) = st.columns([1, 1, 1, 1, 1.6, 0.32, 0.32], vertical_alignment="center")
+            speed_navigation, coach_navigation, location_column,
+        ) = st.columns([1, 1, 1, 1, 1.2, 0.32, 0.32], vertical_alignment="center")
 
         venue_label = {
             "venue": "Venue · Geoinformation",
@@ -101,6 +101,14 @@ def render_header():
             width="stretch",
             on_click=select_view,
             args=("overview",),
+        )
+        speed_navigation.button(
+            "Speed forecast",
+            key="show_speed_view",
+            type="primary" if active_view == "speed" else "secondary",
+            width="stretch",
+            on_click=select_view,
+            args=("speed",),
         )
         live_navigation.button(
             "● Live",
@@ -424,6 +432,8 @@ def main():
         agent_views.render_sailor_brief()
     elif active_view == "overview":
         agent_views.render_strategy_overview()
+    elif active_view == "speed":
+        agent_views.render_speed_forecast()
     else:  # "live" (and any view name from before the merge into Geoinformation)
         agent_views.render_live()
 

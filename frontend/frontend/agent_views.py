@@ -7,15 +7,17 @@ import math
 import sys
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import requests  # noqa: E402
 
-from backend import analysis, race_analysis, strategy  # noqa: E402
+from backend import analysis, boat_speed, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
-from backend.compute.map_grid import MAP_LAYERS, get_map_grid  # noqa: E402
+from backend.compute.map_grid import MAP_LAYERS, get_map_grid, local_bounds  # noqa: E402
 from frontend.frontend.current_map import combine_layers, render_current_map  # noqa: E402
+from frontend.frontend.ocean_3d import render_ocean_3d  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
 
@@ -26,6 +28,7 @@ AGENT_VIEWS = {
     "coach_brief": "Coach brief",
     "sailor_brief": "Sailor brief",
     "overview": "Strategy overview",
+    "speed": "Speed forecast",
     "live": "Live",
 }
 
@@ -148,11 +151,122 @@ def race_summary():
 
 
 def document_entries():
-    """(kind, doc) for every coach document: uploaded files, else the demo set, plus pasted transcripts."""
+    """Return uploaded files, visible demos, and pasted transcripts with their kinds."""
     uploaded = [("uploaded", doc) for doc in st.session_state.uploaded.values()]
-    demo = [] if uploaded else [("demo", doc) for doc in demo_documents()
-                                if doc["name"] not in st.session_state.hidden_demo]
+    demo = [] if uploaded else [
+        ("demo", doc) for doc in demo_documents()
+        if doc["name"] not in st.session_state.hidden_demo
+    ]
     return uploaded + demo + [("pasted", doc) for doc in st.session_state.pasted]
+
+
+@st.cache_data(show_spinner="Preparing ILCA 7 telemetry…")
+def speed_dataset(horizon_seconds=30):
+    return boat_speed.build_dataset(horizon_seconds)
+
+
+@st.cache_resource(show_spinner="Training ILCA 7 speed model…")
+def speed_model(horizon_seconds, excluded_boat):
+    return boat_speed.train_model(speed_dataset(horizon_seconds), excluded_boat)
+
+
+SPEED_COLOURS = (
+    (2, [49, 54, 149], "0–2 kt"),
+    (4, [41, 120, 185], "2–4 kt"),
+    (6, [46, 179, 126], "4–6 kt"),
+    (8, [253, 174, 97], "6–8 kt"),
+    (float("inf"), [215, 48, 39], "8+ kt"),
+)
+
+SPEED_LEADER_LABELS = {
+    "Elliot Hanson": "1 · Elliot Hanson (GBR 215613)",
+    "Lorenzo Brando Chiavarini": "2 · Lorenzo Brando Chiavarini (ITA 216159)",
+    "Duko Bos": "3 · Duko Bos (NED 206717)",
+}
+SPEED_SELECTOR_EXCLUSIONS = {"2796_15347_USA_211414"}
+
+
+def speed_colour(speed_kt):
+    return next(colour for upper, colour, _ in SPEED_COLOURS if speed_kt < upper)
+
+
+def speed_map_payload(location_name, location_info, **options):
+    """Build the minimal field envelope required by the shared Live map."""
+    bounds = local_bounds(
+        location_info["lat"], location_info["lon"], location_info["radius_m"]
+    )
+    return {
+        "title": options.pop("title", "Sailing area"),
+        "mode": "scalar",
+        "legend_label": "",
+        "unit": "",
+        "bounds": bounds,
+        "latitudes": [bounds["south"], bounds["north"]],
+        "longitudes": [bounds["west"], bounds["east"]],
+        "rows": 2,
+        "columns": 2,
+        "frames": [{"time": "", "u": [None] * 4, "v": [None] * 4,
+                    "value": [None] * 4}],
+        "minimum_value": 0,
+        "maximum_value": 0,
+        "location_marker": {
+            "name": location_name,
+            "lat": location_info["lat"],
+            "lng": location_info["lon"],
+            "radius_m": location_info["radius_m"],
+        },
+        **options,
+    }
+
+
+def speed_track_points(rows, model, horizon):
+    """Build the speed-coloured GPS points shared by playback and overlays."""
+    predictions = model.predict(rows)
+    points = []
+    for (_, row), predicted_speed in zip(rows.iterrows(), predictions):
+        predicted_lat, predicted_lng = boat_speed.project_position(
+            float(row["lat"]), float(row["lng"]), float(row["heading_deg"]),
+            float(predicted_speed), horizon,
+        )
+        points.append({
+            "lat": float(row["lat"]),
+            "lng": float(row["lng"]),
+            "time_epoch": float(row["time_epoch"]),
+            "speed_kt": float(row["speed_kt"]),
+            "predicted_speed_kt": float(predicted_speed),
+            "prediction_low_kt": max(
+                0.0, float(predicted_speed + model.residual_low_kt)
+            ),
+            "prediction_high_kt": min(
+                boat_speed.MAX_PLAUSIBLE_SPEED_KT,
+                float(predicted_speed + model.residual_high_kt),
+            ),
+            "actual_future_speed_kt": (
+                float(row["target_speed_kt"])
+                if pd.notna(row["target_speed_kt"])
+                else None
+            ),
+            "predicted_lat": predicted_lat,
+            "predicted_lng": predicted_lng,
+            "colour": speed_colour(float(row["speed_kt"])),
+        })
+    return points
+
+
+def speed_replay_map(rows, index, model, horizon, location_name, location_info):
+    """Build GPS playback data for the same renderer used by the Live map."""
+    points = speed_track_points(rows, model, horizon)
+    render_current_map(
+        speed_map_payload(
+            location_name,
+            location_info,
+            title="GPS speed route",
+            gps_track=points,
+            start_frame=index,
+            autoplay=False,
+        ),
+        height=560,
+    )
 
 
 def documents():
@@ -263,6 +377,72 @@ def render_layer_map(key, hour, height=420):
     render_current_map(combine_layers(grids, start_frame=start, autoplay=False), height=height)
     st.caption(f"{layer_caption([grid['title'] for grid in grids])} Opened at {hour:02d}:00 on "
                f"{st.session_state.race_day:%d %b}; use the slider for other hours.")
+
+
+def render_speed_area_map(
+    location_name, location_info, layer, key, gps_overlay=None, gps_index=None
+):
+    """Render a location-only or modelled marine layer for a sailing area."""
+    location_payload = {
+        "name": location_name,
+        "lat": location_info["lat"],
+        "lng": location_info["lon"],
+        "radius_m": location_info["radius_m"],
+    }
+    if layer == "Location only":
+        render_current_map(
+            speed_map_payload(
+                location_name,
+                location_info,
+                title=location_name,
+                location_only=True,
+                autoplay=False,
+                gps_overlay=gps_overlay or [],
+                gps_overlay_index=gps_index,
+            ),
+            height=560,
+        )
+        return
+
+    try:
+        with st.spinner(f"Building the regional {layer.lower()} field…"):
+            grid = get_map_grid(
+                location_info["lat"],
+                location_info["lon"],
+                st.session_state.race_day,
+                layer,
+                bounds=local_bounds(
+                    location_info["lat"],
+                    location_info["lon"],
+                    location_info["radius_m"],
+                ),
+            )
+    except requests.exceptions.RequestException as error:
+        st.error(f"Could not load the regional map layer: {error}")
+        return
+    except (KeyError, ValueError) as error:
+        st.error(f"Unexpected regional map response: {error}")
+        return
+
+    hour = st.session_state.map_hour
+    stamp = f"T{hour:02d}:00"
+    start = next(
+        (i for i, frame in enumerate(grid["frames"]) if frame["time"].endswith(stamp)),
+        None,
+    )
+    render_current_map({
+        **grid,
+        "start_frame": start,
+        "autoplay": False,
+        "location_marker": location_payload,
+        "gps_overlay": gps_overlay or [],
+        "gps_overlay_index": gps_index,
+    }, height=560)
+    st.caption(
+        f"{MAP_LAYERS[layer]['description']} Modelled Open-Meteo data for "
+        f"{st.session_state.race_day:%d %b %Y}. The marine field is fixed at "
+        f"{hour:02d}:00; the map timeline follows the selected GPS track."
+    )
 
 
 # ---------- 1. Coach file ----------
@@ -775,7 +955,108 @@ def render_strategy_overview():
                               horizontal=True, height=520)
 
 
-# ---------- 7. Live ----------
+# ---------- 7. Speed forecast ----------
+
+def render_speed_forecast():
+    """Replay an unseen boat and predict its speed 30 seconds ahead."""
+    st.header("ILCA 7 speed forecast")
+    st.caption("A short-horizon forecast learned from 44 SailSync GPS tracks. "
+               "Choose any of the three LA28 sailing areas.")
+
+    horizon = 30
+    data = speed_dataset(horizon)
+    locations = boat_speed.FORECAST_LOCATIONS
+    location_col, boat_col = st.columns([1, 2])
+    location = location_col.selectbox("Sailing area", list(locations), key="speed_location")
+    location_info = locations[location]
+    if not location_info["telemetry"]:
+        st.markdown(
+            f'<div class="la-card"><b>{esc(location)}</b> · '
+            f'{location_info["lat"]:.3f}, {location_info["lon"]:.3f} '
+            '<span class="la-warn">No data available</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.warning(
+            "No calibrated ILCA 7 GPS data is available for this sailing area. "
+            "The map shows its exact location and race-area radius without a route.",
+            icon="ℹ️",
+        )
+        layer = st.selectbox(
+            "Map data",
+            ["Location only", *MAP_LAYERS],
+            key="speed_uncalibrated_layer",
+        )
+        render_speed_area_map(location, location_info, layer, "speed_uncalibrated")
+        return
+
+    available_boats = set(data["boat"].unique()) - SPEED_SELECTOR_EXCLUSIONS
+    leaders = [name for name in SPEED_LEADER_LABELS if name in available_boats]
+    boats = leaders + sorted(available_boats - set(leaders))
+    selected_boat = boat_col.selectbox(
+        "Live boat feed",
+        boats,
+        key="speed_boat",
+        format_func=lambda name: SPEED_LEADER_LABELS.get(name, name),
+    )
+
+    boat_rows = data[data["boat"] == selected_boat].reset_index(drop=True)
+    maximum = max(0, len(boat_rows) - 1)
+    if st.session_state.get("speed_replay_boat") != selected_boat:
+        st.session_state.speed_replay_boat = selected_boat
+        st.session_state.speed_replay_position = min(maximum, maximum // 2)
+    index = min(
+        maximum, st.session_state.get("speed_replay_position", maximum // 2)
+    )
+    model = speed_model(horizon, selected_boat)
+
+    visualisation = st.segmented_control(
+        "Visualisation",
+        ["2D GPS map", "3D coaching"],
+        default="2D GPS map",
+        key="speed_visualisation",
+    )
+    if visualisation == "3D coaching":
+        st.subheader("Simulated 3D coaching view")
+        st.caption(
+            "Phase 1 foundation: this verifies the isolated 3D renderer. GPS synchronisation "
+            "and wave-driven boat movement are added only in their approved phases."
+        )
+        render_ocean_3d({
+            "location": location,
+            "boat": selected_boat,
+        })
+    else:
+        st.subheader("GPS movement and predicted position")
+        layer = st.selectbox(
+            "Map data",
+            ["GPS speed route", "Location only", *MAP_LAYERS],
+            key="speed_calibrated_layer",
+        )
+        if layer == "GPS speed route":
+            st.caption(
+                "Hover over the trail for speed. Dark marker = current GPS position; orange marker = "
+                f"projected position in {horizon} seconds at the predicted speed."
+            )
+            speed_replay_map(
+                boat_rows, index, model, horizon, location, location_info
+            )
+        else:
+            render_speed_area_map(
+                location,
+                location_info,
+                layer,
+                "speed_calibrated",
+                gps_overlay=speed_track_points(boat_rows, model, horizon),
+                gps_index=index,
+            )
+    st.caption(
+        f"Validation MAE: {model.validation_mae_kt:.2f} kt · "
+        f"{model.training_rows:,} samples from {model.boats} other boats · "
+        "GPS-derived speed is smoothed over 30 seconds."
+    )
+
+
+# ---------- 8. Live ----------
 
 def render_live():
     st.header("Live strategy check")

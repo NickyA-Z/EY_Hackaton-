@@ -30,9 +30,15 @@ FEATURES = (
 # All three areas can use the same class model. Only Outer Harbor currently
 # has labelled SailSync telemetry, so the other areas are marked as transfers.
 FORECAST_LOCATIONS = {
-    "Belmont Shore": {"lat": 33.748, "lon": -118.140, "telemetry": False},
-    "LA Outer Harbor": {"lat": 33.712, "lon": -118.272, "telemetry": True},
-    "Outside Breakwater": {"lat": 33.695, "lon": -118.235, "telemetry": False},
+    "Belmont Shore": {
+        "lat": 33.748, "lon": -118.140, "radius_m": 1_500, "telemetry": False,
+    },
+    "LA Outer Harbor": {
+        "lat": 33.712, "lon": -118.272, "radius_m": 1_000, "telemetry": True,
+    },
+    "Outside Breakwater": {
+        "lat": 33.695, "lon": -118.235, "radius_m": 2_000, "telemetry": False,
+    },
 }
 
 
@@ -202,3 +208,21 @@ def predict_row(model, row):
         "low_speed_kt": max(0.0, estimate + model.residual_low_kt),
         "high_speed_kt": min(MAX_PLAUSIBLE_SPEED_KT, estimate + model.residual_high_kt),
     }
+
+
+def project_position(lat, lng, heading_degrees, speed_kt, seconds):
+    """Project a GPS position along its heading at a constant predicted speed."""
+    distance_metres = speed_kt / KNOTS_PER_MPS * seconds
+    angular_distance = distance_metres / 6_371_000.0
+    bearing = math.radians(heading_degrees)
+    latitude = math.radians(lat)
+    longitude = math.radians(lng)
+    projected_latitude = math.asin(
+        math.sin(latitude) * math.cos(angular_distance)
+        + math.cos(latitude) * math.sin(angular_distance) * math.cos(bearing)
+    )
+    projected_longitude = longitude + math.atan2(
+        math.sin(bearing) * math.sin(angular_distance) * math.cos(latitude),
+        math.cos(angular_distance) - math.sin(latitude) * math.sin(projected_latitude),
+    )
+    return math.degrees(projected_latitude), math.degrees(projected_longitude)

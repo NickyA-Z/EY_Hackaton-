@@ -92,6 +92,21 @@ def regional_bounds(latitude, longitude):
     }
 
 
+def local_bounds(latitude, longitude, radius_m):
+    """Bounds centred on a sailing area, with room around its official radius."""
+    padding_m = max(radius_m * 3, 4_000)
+    latitude_padding = padding_m / 111_320
+    longitude_padding = padding_m / (
+        111_320 * max(0.2, math.cos(math.radians(latitude)))
+    )
+    return {
+        "south": latitude - latitude_padding,
+        "north": latitude + latitude_padding,
+        "west": longitude - longitude_padding,
+        "east": longitude + longitude_padding,
+    }
+
+
 def _vector_components(magnitude, direction, direction_type):
     """Convert a bearing and magnitude into eastward/northward components."""
     if direction_type == "from":
@@ -101,7 +116,7 @@ def _vector_components(magnitude, direction, direction_type):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_map_grid(latitude, longitude, selected_date, layer_name):
+def get_map_grid(latitude, longitude, selected_date, layer_name, bounds=None):
     """Build one day of scalar or directional frames for a map layer."""
     if layer_name not in MAP_LAYERS:
         raise ValueError(f"Unsupported map layer: {layer_name}")
@@ -119,7 +134,7 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         value_variable = configuration["magnitude"]
 
     max_snap = configuration.get("max_snap", 0.11)
-    bounds = regional_bounds(latitude, longitude)
+    bounds = bounds or regional_bounds(latitude, longitude)
     latitudes = _axis(bounds["south"], bounds["north"], GRID_ROWS)
     longitudes = _axis(bounds["west"], bounds["east"], GRID_COLUMNS)
     coordinates = [

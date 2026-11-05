@@ -6,7 +6,7 @@ import zipfile
 
 import pandas as pd
 
-from backend import analysis, race_analysis, strategy
+from backend import analysis, boat_speed, race_analysis, strategy
 from backend.analysis import tagging, text_reader, transcripts
 
 # --- strategy ---
@@ -54,6 +54,20 @@ assert rules and covered["Exclusion zones"] and covered["Communication"]
 # --- race tracks ---
 summary = race_analysis.summary()
 assert summary["races"] and summary["verdict"] in ("Left", "Right", "Middle")
+
+# --- short-horizon ILCA 7 speed forecast ---
+speed_data = boat_speed.build_dataset(horizon_seconds=30)
+selected_boat = speed_data["boat"].iloc[0]
+speed_model = boat_speed.train_model(speed_data, excluded_boat=selected_boat)
+speed_prediction = boat_speed.predict_row(speed_model, speed_data.iloc[0])
+assert set(boat_speed.FORECAST_LOCATIONS) == {
+    "Belmont Shore", "LA Outer Harbor", "Outside Breakwater"
+}
+assert 0 <= speed_prediction["predicted_speed_kt"] <= boat_speed.MAX_PLAUSIBLE_SPEED_KT
+assert speed_prediction["low_speed_kt"] <= speed_prediction["high_speed_kt"]
+assert speed_model.validation_mae_kt < 4
+projected_lat, projected_lng = boat_speed.project_position(33.7, -118.2, 0, 5, 30)
+assert projected_lat > 33.7 and abs(projected_lng + 118.2) < 0.0001
 
 print("ok", insight["n_days"], brief["confidence"], summary["verdict"])
 
