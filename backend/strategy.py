@@ -1,7 +1,8 @@
-"""Strategy engine: pure functions over the June 2021-2026 data.
+"""Strategy engine: pure functions over the summer 2021-2026 data.
 
-Demo story (same as src/conditions_June_2026): June 2021-2025 is history,
-June 2026 is replayed hour by hour as if live.
+Demo story (same as src/conditions_June_2026): the downloaded months (June and July)
+of 2021-2025 are history; the same months of 2026 are replayed hour by hour as if live.
+Months are not hard-coded: every monthly file present in DATA is used.
 """
 
 import json
@@ -11,14 +12,10 @@ import pandas as pd
 
 from backend.venue_time import open_meteo_to_local, utc_to_local
 
-DATA = (
-    Path(__file__).resolve().parent.parent
-    / "data"
-    / "src"
-    / "conditions_June_2026"
-    / "data"
-    / "raw"
-)
+# Single source of truth: the raw folder the downloader and the ingest inbox write to.
+DATA = Path(__file__).resolve().parent.parent / "src" / "conditions_June_2026" / "data" / "raw"
+MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July",
+               "August", "September", "October", "November", "December"]
 HISTORY_YEARS = range(2021, 2026)
 LIVE_YEAR = 2026
 
@@ -56,16 +53,21 @@ def angle_diff(a, b):
 
 # ---------- loading ----------
 
+def _monthly_files(folder, prefix, year, suffix):
+    """Files named <prefix><YYYYMM><suffix> for one year, with their month number."""
+    for path in sorted((DATA / folder).glob(f"{prefix}{year}[01][0-9]{suffix}")):
+        yield int(path.name[len(prefix) + 4:len(prefix) + 6]), path
+
+
 def load_wind(years, point="racecourse_belmont"):
     frames = []
     for year in years:
-        path = DATA / "open_meteo" / f"{point}_{year}06.json"
-        if path.exists():
+        for month, path in _monthly_files("open_meteo", f"{point}_", year, ".json"):
             payload = json.loads(path.read_text())
             frame = pd.DataFrame(payload["hourly"])
-            # Labels are GMT-8 in these files; convert to the real LA clock (PDT in June).
+            # Labels are GMT-8 in these files; convert to the real LA clock (PDT in summer).
             frame["time"] = open_meteo_to_local(frame["time"], payload.get("utc_offset_seconds"))
-            frames.append(frame[frame["time"].dt.month == 6])  # drop the hour that spills into July
+            frames.append(frame[frame["time"].dt.month == month])  # drop the hour spilling into the next month
     df = pd.concat(frames, ignore_index=True)
     df = df.rename(columns={"wind_speed_10m": "speed", "wind_direction_10m": "dir",
                             "wind_gusts_10m": "gust", "cloud_cover": "cloud"})
@@ -77,14 +79,23 @@ def load_wind(years, point="racecourse_belmont"):
 def load_tides(years=range(2021, 2027)):
     frames = []
     for year in years:
-        path = DATA / "noaa_coops" / f"9410660_predictions_{year}06.csv"
-        if path.exists():
+        for _, path in _monthly_files("noaa_coops", "9410660_predictions_", year, ".csv"):
             frames.append(pd.read_csv(path, skipinitialspace=True))
     df = pd.concat(frames, ignore_index=True)
     df.columns = [column.strip() for column in df.columns]
     # NOAA file is GMT; convert with the LA rules (PDT in summer, PST in winter).
     df["time"] = utc_to_local(df["Date Time"])
     return df[["time", "Type"]].sort_values("time").reset_index(drop=True)
+
+
+def season_label(df):
+    """Human label for the months present in a wind frame, e.g. "June–July"."""
+    months = sorted(df["time"].dt.month.unique())
+    if not months:
+        return "no data"
+    if len(months) == 1:
+        return MONTH_NAMES[months[0] - 1]
+    return f"{MONTH_NAMES[months[0] - 1]}–{MONTH_NAMES[months[-1] - 1]}"
 
 
 # ---------- venue map ----------
