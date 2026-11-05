@@ -1,4 +1,4 @@
-"""Location Agent strategy engine: pure functions over the June 2021-2026 data.
+"""Strategy engine: pure functions over the June 2021-2026 data.
 
 Demo story (same as src/conditions_June_2026): June 2021-2025 is history,
 June 2026 is replayed hour by hour as if live.
@@ -30,26 +30,6 @@ VENUES = {
     },
 }
 
-FILE_TYPES = {
-    ".csv": ("CSV", "Wind observations"),
-    ".xlsx": ("XLSX", "Race results"),
-    ".xls": ("XLS", "Race results"),
-    ".gpx": ("GPX", "Boat tracks"),
-    ".txt": ("TXT", "Coach notes (AI-tagged)"),
-    ".md": ("TXT", "Coach notes (AI-tagged)"),
-    ".jpg": ("JPG", "Drawing (AI-read)"),
-    ".jpeg": ("JPG", "Drawing (AI-read)"),
-    ".png": ("PNG", "Drawing (AI-read)"),
-}
-DEMO_FILES = [
-    "wind_log_coachboat_2025.csv",
-    "training_tracks_week44.gpx",
-    "race_results_2024_2026.xlsx",
-    "debrief_day3.txt",
-    "course_sketch_rightside.jpg",
-]
-
-
 # ---------- small helpers ----------
 
 def sector(degrees):
@@ -63,21 +43,6 @@ def sector_center(name):
 def angle_diff(a, b):
     """Signed change from a to b in degrees, -180..180 (positive = veer/right)."""
     return (b - a + 180) % 360 - 180
-
-
-def map_file(filename):
-    """Map an uploaded file name to (badge, common-model entity)."""
-    suffix = Path(filename).suffix.lower()
-    badge, entity = FILE_TYPES.get(suffix, (suffix.lstrip(".").upper() or "FILE", None))
-    name = filename.lower()
-    if suffix in (".csv", ".xlsx", ".xls"):
-        if "result" in name:
-            entity = "Race results"
-        elif "track" in name or "gps" in name:
-            entity = "Boat tracks"
-        elif "wind" in name or suffix == ".csv":
-            entity = "Wind observations"
-    return badge, entity
 
 
 # ---------- loading ----------

@@ -1,4 +1,11 @@
-# LA28 Marine Conditions dashboard
+# LA28 Location Agent dashboard
+
+Top row: the coach's race-prep flow — **Coach file → Venue map → Venue rules →
+Coach brief → Sailor brief → Strategy overview → Live** (`agent_views.py`, logic
+in `../backend`, see `../backend/README.md`). Second row: the marine-data views
+below (Map layer, Point chart, Geolocation). Picking a venue in Coach file sets
+the shared latitude/longitude.
+
 
 This Streamlit dashboard runs locally and retrieves historical marine forecast
 data from Open-Meteo for a selected coordinate, date range, and marine

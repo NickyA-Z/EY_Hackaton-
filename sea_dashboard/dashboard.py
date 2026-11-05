@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
+import agent_views
 from current_map import render_current_map
 from marine_api import (
     MAP_LAYERS,
@@ -55,11 +56,22 @@ def load_geolocation_data():
 
 def render_header():
     """Render top navigation and shared location controls."""
-    active_view = st.session_state.setdefault("active_view", "map")
+    active_view = st.session_state.setdefault("active_view", "coach")
     st.session_state.setdefault("selected_latitude", 33.72)
     st.session_state.setdefault("selected_longitude", -118.27)
 
     with st.container(border=True):
+        for column, (view, label) in zip(
+            st.columns(len(agent_views.AGENT_VIEWS)), agent_views.AGENT_VIEWS.items()
+        ):
+            column.button(
+                label,
+                key=f"show_{view}_view",
+                type="primary" if active_view == view else "secondary",
+                width="stretch",
+                on_click=select_view,
+                args=(view,),
+            )
         (
             map_navigation,
             chart_navigation,
@@ -110,9 +122,10 @@ def render_header():
     return latitude, longitude
 
 
-def render_map_view(latitude, longitude):
+def render_map_view(latitude, longitude, title="Map layer"):
     """Render the regional map controls and map result."""
-    st.header("Map layer")
+    if title:
+        st.header(title)
 
     layer_column, date_column, latest_column, load_column = st.columns(
         [1.5, 1.5, 1, 1]
@@ -421,16 +434,37 @@ def render_geolocation_view():
 
 def main():
     st.set_page_config(
-        page_title="LA28 Marine Conditions",
+        page_title="LA28 Location Agent",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
 
-    st.title("LA28 Olympic Sailing — Marine Conditions")
-    st.write("Open a regional map, point chart, or LA28 geolocation profile.")
+    st.title("LA28 Olympic Sailing — Location Agent")
+    st.write(
+        "Top row: the coach's race-prep flow. Second row: raw marine data, "
+        "point chart and LA28 geolocation."
+    )
 
+    agent_views.init_state()
     latitude, longitude = render_header()
-    if st.session_state["active_view"] == "map":
+    active_view = st.session_state["active_view"]
+    if active_view == "coach":
+        agent_views.render_coach_file()
+    elif active_view == "venue":
+        agent_views.render_venue_map(
+            lambda: render_map_view(latitude, longitude, title=None)
+        )
+    elif active_view == "rules":
+        agent_views.render_venue_rules(load_geolocation_data)
+    elif active_view == "coach_brief":
+        agent_views.render_coach_brief()
+    elif active_view == "sailor_brief":
+        agent_views.render_sailor_brief()
+    elif active_view == "overview":
+        agent_views.render_strategy_overview()
+    elif active_view == "live":
+        agent_views.render_live()
+    elif active_view == "map":
         render_map_view(latitude, longitude)
     elif st.session_state["active_view"] == "point":
         render_point_view(latitude, longitude)
