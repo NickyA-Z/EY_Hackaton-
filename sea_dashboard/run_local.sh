@@ -13,5 +13,5 @@ exec uv run \
   --with-requirements requirements.txt \
   streamlit run dashboard.py \
   --server.address 127.0.0.1 \
-  --server.port "${PORT:-8501}" \
+  --server.port "${PORT:-8502}" \
   --browser.gatherUsageStats false
