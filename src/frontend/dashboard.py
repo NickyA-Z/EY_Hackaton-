@@ -6,6 +6,7 @@ import json
 import pandas as pd
 import requests
 import streamlit as st
+import truststore
 
 from backend.retrieval.geolocation import (
     GEO_DATA_DIRECTORY,
@@ -21,6 +22,8 @@ from frontend import agent_views, globe
 from frontend.current_map import combine_layers, render_current_map
 from frontend.previous_strategy_view import render_previous_strategy
 from frontend.styles import apply_global_styles
+
+truststore.inject_into_ssl()
 
 RESULT_VIEW_HEIGHT = 500
 APP_TITLE = "LA28 Olympic Sailing — Location Agent"
