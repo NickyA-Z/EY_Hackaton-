@@ -31,14 +31,29 @@ QUERY_CACHE_MAX = 256
 Embedder = Callable[[Sequence[str]], list[list[float]]]
 
 
+def embeddings_base_url() -> str | None:
+    """Where to send embedding requests: None = api.openai.com, else the endpoint from ``OPENAI_ENDPOINT``.
+
+    An Azure resource (``https://<name>.services.ai.azure.com``) is given without a path; its OpenAI-compatible
+    API lives under ``/openai/v1/``, which is added here. ``model`` is then the Azure *deployment* name.
+    ``ENDPOINT`` is still read as the old name of the same setting.
+    """
+    url = (os.environ.get("OPENAI_ENDPOINT") or os.environ.get("ENDPOINT") or "").strip().rstrip("/")
+    if not url:
+        return None
+    if "azure.com" in url and "/openai" not in url:
+        url += "/openai/v1/"
+    return url
+
+
 class OpenAIEmbedder:
-    """Batched OpenAI embeddings; ``tokens`` accumulates billed input tokens."""
+    """Batched embeddings from OpenAI or an Azure OpenAI deployment; ``tokens`` accumulates billed input tokens."""
 
     def __init__(self, model: str) -> None:
         self.model = model
         self.tokens = 0
-        # Reads OPENAI_API_KEY from the environment. ENDPOINT (if set in .env) is an OpenAI-compatible base URL.
-        self._client = OpenAI(timeout=60.0, base_url=os.environ.get("ENDPOINT") or None)
+        # Reads OPENAI_API_KEY from the environment; OPENAI_ENDPOINT (if set) redirects to Azure or a compatible server.
+        self._client = OpenAI(timeout=60.0, base_url=embeddings_base_url())
 
     def __call__(self, texts: Sequence[str]) -> list[list[float]]:
         vectors: list[list[float]] = []

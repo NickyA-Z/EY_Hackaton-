@@ -39,10 +39,10 @@ Create a `.env` in the repository root (it is gitignored; never commit it):
 | Variable | Needed for | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | `brief`, `ask` | |
-| `OPENAI_API_KEY` | `index`, `search`, `ask` | Standard OpenAI keys start with `sk-`. |
+| `OPENAI_API_KEY` | `index`, `search`, `ask` | Standard OpenAI keys start with `sk-`; an Azure key does not (see `OPENAI_ENDPOINT`). |
 | `CLAUDE_MODEL` | `brief`, `ask` | Use hyphens, e.g. `claude-haiku-5-5` (a dotted `5.5` is rejected by the API). |
 | `EMBEDDING_MODEL` | `index`, `search`, `ask` | Default `text-embedding-3-small`. |
-| `ENDPOINT` | optional | Base URL of an OpenAI-compatible gateway. Empty = api.openai.com. Untested. |
+| `OPENAI_ENDPOINT` | optional | Where embeddings go. Empty = api.openai.com. For Azure give the resource URL (`https://<name>.services.ai.azure.com`); `/openai/v1/` is added, and `EMBEDDING_MODEL` is then the Azure *deployment* name. Verified 2026-11-06 with `text-embedding-3-large`. The old name `ENDPOINT` is still read. |
 
 ## Usage
 
@@ -67,8 +67,9 @@ Condition flags: `--wind --gust --wind-rise --rain --cloud --cloud-change --curr
   Vectors are supplied explicitly, so Chroma's bundled default embedder is never loaded.
 - `brief` sends only the triggered documents. The stable part (rules, priority order, TS-01/TS-10/TS-11) is a
   separate prompt-cached block; the CLI prints `cache write` / `cache read` token counts so you can see it work.
-- `ask` sends only the top-k sections. Claude thinking is disabled: with it on, the model used its whole token
-  budget on a thinking block and returned no text.
+- `ask` sends only the top-k sections. Claude thinking is switched off (`generate.thinking_off`): with it on, the model used its
+  whole token budget on a thinking block and returned no text. The request value depends on the model: `disabled` for
+  haiku-5.5, `between_tools` for sonnet-5-5 / opus-5-5 / fable-5 (the API answers 400 to `disabled` there).
 
 ## Files
 
@@ -85,9 +86,9 @@ Tests are in `src/backend/tests/rag/` (`uv run pytest`) and need no API keys: em
 
 ## Known limitations
 
-- **Live embedding, `search` and `ask` were not verified end to end** when this was written, because the available
-  OpenAI key was rejected. The Claude briefing was verified live; the vector path is covered only by tests with a fake embedder.
-  Check retrieval quality before relying on it.
+- **Verified end to end on 2026-11-06** (Azure `text-embedding-3-large`, `claude-sonnet-5-5`): `index` embedded 88 chunks
+  (5823 tokens) and a second run embedded none; `search` and `ask` returned cited answers. Retrieval *quality* was only
+  eyeballed on a few questions, not measured.
 - Weather inputs are entered by hand. Only waves and current exist in `src/backend/retrieval/marine_api.py`; wind, gusts,
   rain and cloud would need a forecast source.
 - Judgement calls where the corpus is silent: TS-02 is applied for 8 up to (not including) 18 kt, because the corpus

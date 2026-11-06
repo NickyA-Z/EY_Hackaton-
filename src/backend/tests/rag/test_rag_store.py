@@ -131,3 +131,18 @@ def test_brief_prompt_caches_stable_prefix_and_sends_only_selected_docs():
     # same prefix for a different day => cache hit
     other_system, _ = build_brief_prompt(docs, Conditions(wind_mean_kt=6), select_documents(Conditions(wind_mean_kt=6)))
     assert other_system[0]["text"] == prefix
+
+
+def test_embeddings_base_url_handles_azure_and_the_old_variable_name(monkeypatch):
+    from backend.rag.store import embeddings_base_url
+
+    for name in ("OPENAI_ENDPOINT", "ENDPOINT"):
+        monkeypatch.delenv(name, raising=False)
+    assert embeddings_base_url() is None  # api.openai.com
+    monkeypatch.setenv("OPENAI_ENDPOINT", "https://lab.services.ai.azure.com/")
+    assert embeddings_base_url() == "https://lab.services.ai.azure.com/openai/v1/"
+    monkeypatch.setenv("OPENAI_ENDPOINT", "https://lab.openai.azure.com/openai/v1/")
+    assert embeddings_base_url() == "https://lab.openai.azure.com/openai/v1"  # already has the path: left alone
+    monkeypatch.delenv("OPENAI_ENDPOINT")
+    monkeypatch.setenv("ENDPOINT", "http://localhost:8000/v1")
+    assert embeddings_base_url() == "http://localhost:8000/v1"

@@ -69,6 +69,13 @@ def _usage(response: Any) -> Usage:
     )
 
 
+def thinking_off(model: str) -> dict:
+    """The request value that turns thinking off. Newer models reject "disabled" (checked against the API on
+    2026-11-06 with claude-sonnet-5-5: 400, "send between_tools instead"); haiku-5.5 still takes it."""
+    newer = model.startswith(("claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5"))
+    return {"type": "between_tools" if newer else "disabled"}
+
+
 def _complete(client: Any, model: str, system: list[dict], user: str, max_tokens: int) -> tuple[str, Usage]:
     # Thinking is off: this is synthesis over supplied text. With it on, haiku-5.5 spent the whole 1500-token
     # budget on a thinking block and returned no text at all (measured: 1500 out / 0 text vs 490 out / full answer).
@@ -77,7 +84,7 @@ def _complete(client: Any, model: str, system: list[dict], user: str, max_tokens
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
-        thinking={"type": "disabled"},
+        thinking=thinking_off(model),
     )
     text = "".join(block.text for block in response.content if block.type == "text").strip()
     if not text:  # never return a silent blank
