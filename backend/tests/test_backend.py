@@ -7,7 +7,8 @@ import zipfile
 import pandas as pd
 
 from backend import analysis, race_analysis, strategy
-from backend.analysis import audio_text, tagging, text_reader, transcripts
+from backend.analysis import audio_text, tagging, text_reader, transcripts, water_metrics, water_view
+from backend.retrieval import live_camera
 
 # --- strategy ---
 assert strategy.angle_diff(350, 10) == 20 and strategy.angle_diff(10, 350) == -20
@@ -53,6 +54,26 @@ whisper = audio_text.to_result([{"start": 3.4, "text": " Go right. "}, {"start":
 assert [s["time"] for s in whisper["segments"]] == ["00:03", "1:02:05"] and whisper["text"] == "Go right.\nOk"
 assert audio_text.to_result([], "whisper (test)")["error"] == "No speech recognised"
 assert audio_text.transcribe_audio(b"not audio")["error"]  # unreadable or PyAV missing: an error, never a crash
+
+# --- capability 5: live camera water check (no network, no Claude: plain rules only) ---
+calm = {"water_visible": True, "surface": "glassy", "whitecaps": "none", "label": "Camera"}
+assert water_view.compare(calm, {"wind_kt": 3})["agreement"] == "Camera and numbers agree."
+assert "calmer than the wind" in water_view.compare(calm, {"wind_kt": 20})["agreement"]
+assert "rougher than the wind" in water_view.compare({**calm, "surface": "rough"}, {"wind_kt": 3})["agreement"]
+assert water_view.compare(None, {"wind_kt": 12})["verdict"] == "Choppy"  # numbers only
+assert water_view.compare(None, None)["verdict"] is None  # no evidence: no verdict, never a guess
+assert water_metrics.estimate(0.5, 1)["surface"] == "glassy" and water_metrics.estimate(9, 6)["whitecaps"] == "many"
+try:
+    live_camera.frame_from_video(b"not a video")
+    raise AssertionError("expected SnapshotError")
+except live_camera.SnapshotError:
+    pass
+for bad_url in ("ftp://camera", "not a url"):
+    try:
+        live_camera.grab_snapshot(bad_url)
+        raise AssertionError("expected SnapshotError")
+    except live_camera.SnapshotError:
+        pass
 
 # --- tagging ---
 assert "Wind" in tagging.tag("The breeze veered right.")

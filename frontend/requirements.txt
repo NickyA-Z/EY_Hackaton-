@@ -5,3 +5,6 @@ pandas>=2.2,<3
 av>=14,<20
 mlx-whisper>=0.4.3,<0.5; sys_platform == "darwin" and platform_machine == "arm64"
 faster-whisper>=1.2,<2; sys_platform != "darwin" or platform_machine != "arm64"
+opencv-python-headless>=4.10,<6  # live camera: image check, whitecap and texture measurements
+anthropic==2.6.0  # Claude vision (photos of text, live camera); same pin as pyproject.toml
+yt-dlp>=2025.1  # live camera: YouTube live URLs
