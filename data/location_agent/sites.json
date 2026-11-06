@@ -1,0 +1,77 @@
+{
+  "port_la_course": {
+    "lat": 33.69546,
+    "lon": -118.2665,
+    "description": "HRRR sea cell at the Port of LA boat course"
+  },
+  "belmont_course": {
+    "lat": 33.74566,
+    "lon": -118.14767,
+    "description": "HRRR sea cell at the Belmont Shore board course"
+  },
+  "inland_lakewood": {
+    "lat": 33.8565,
+    "lon": -118.1449,
+    "description": "HRRR land cell inland (land temperature)"
+  },
+  "angels_gate": {
+    "lat": 33.71583,
+    "lon": -118.24611,
+    "description": "CO-OPS 9410647 Angels Gate (breakwater entrance)"
+  },
+  "pier_400": {
+    "lat": 33.735195,
+    "lon": -118.2413,
+    "description": "CO-OPS 9410666 Los Angeles Pier 400"
+  },
+  "pier_j": {
+    "lat": 33.733,
+    "lon": -118.18569,
+    "description": "CO-OPS 9410665 Long Beach Pier J"
+  },
+  "buoy_46222": {
+    "lat": 33.614,
+    "lon": -118.314,
+    "description": "NDBC 46222 San Pedro (waves, sea temperature)"
+  },
+  "buoy_46025": {
+    "lat": 33.765,
+    "lon": -119.077,
+    "description": "NDBC 46025 Santa Monica Basin (offshore wind, waves)"
+  },
+  "course_gps": {
+    "lat": 33.687,
+    "lon": -118.271,
+    "description": "Wind derived from ILCA GPS tracks, 19 Jul 2026"
+  },
+  "tide_los_angeles": {
+    "lat": 33.72,
+    "lon": -118.272,
+    "description": "CO-OPS 9410660 Los Angeles tide predictions"
+  },
+  "belmont_course_dayahead": {
+    "lat": 33.74566,
+    "lon": -118.14767,
+    "description": "HRRR day-ahead forecast (issued ~24 h before) at belmont_course"
+  },
+  "inland_lakewood_dayahead": {
+    "lat": 33.8565,
+    "lon": -118.1449,
+    "description": "HRRR day-ahead forecast (issued ~24 h before) at inland_lakewood"
+  },
+  "port_la_course_dayahead": {
+    "lat": 33.69546,
+    "lon": -118.2665,
+    "description": "HRRR day-ahead forecast (issued ~24 h before) at port_la_course"
+  },
+  "current_belmont_course": {
+    "lat": 33.70834,
+    "lon": -118.12499,
+    "description": "Open-Meteo marine model cell nearest belmont_course"
+  },
+  "current_port_la_course": {
+    "lat": 33.70834,
+    "lon": -118.29166,
+    "description": "Open-Meteo marine model cell nearest port_la_course"
+  }
+}

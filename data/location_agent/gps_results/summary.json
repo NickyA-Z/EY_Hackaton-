@@ -1,0 +1,204 @@
+{
+  "event": "San Pedro test regatta, 19 July 2026, ILCA 7 (SailSync event 2796)",
+  "boats": [
+    "Chiavarini (ITA)",
+    "Bos (NED)",
+    "Hanson (GBR)",
+    "Wearn (AUS)"
+  ],
+  "races": [
+    {
+      "race": 1,
+      "start": "14:13",
+      "end": "14:52"
+    },
+    {
+      "race": 2,
+      "start": "15:23",
+      "end": "16:05"
+    },
+    {
+      "race": 3,
+      "start": "16:29",
+      "end": "17:16"
+    }
+  ],
+  "start_lines": [
+    {
+      "race": 1,
+      "time": "14:13",
+      "x_m": 240,
+      "y_min_m": 77,
+      "y_max_m": 376,
+      "boats": 4
+    },
+    {
+      "race": 2,
+      "time": "15:23",
+      "x_m": 265,
+      "y_min_m": 53,
+      "y_max_m": 317,
+      "boats": 4
+    },
+    {
+      "race": 3,
+      "time": "16:29",
+      "x_m": 268,
+      "y_min_m": 183,
+      "y_max_m": 383,
+      "boats": 4
+    }
+  ],
+  "windward_marks": [
+    {
+      "x_m": -982,
+      "y_m": 311,
+      "lat": 33.68981,
+      "lon": -118.281599,
+      "legs": 3,
+      "id": "W1"
+    },
+    {
+      "x_m": -490,
+      "y_m": -426,
+      "lat": 33.683146,
+      "lon": -118.276295,
+      "legs": 3,
+      "id": "W2"
+    },
+    {
+      "x_m": -911,
+      "y_m": 674,
+      "lat": 33.693096,
+      "lon": -118.280833,
+      "legs": 1,
+      "id": "W3"
+    }
+  ],
+  "wind_from_gps": [
+    {
+      "race": 1,
+      "window": "14:13-14:52",
+      "twd_start": 271,
+      "twd_end": 279,
+      "twd_mean": 274,
+      "trend_deg_per_h": 25.2,
+      "oscillation_sd_deg": 2.8,
+      "tack_angle_median": 85
+    },
+    {
+      "race": 2,
+      "window": "15:22-16:05",
+      "twd_start": 268,
+      "twd_end": 265,
+      "twd_mean": 266,
+      "trend_deg_per_h": -4.1,
+      "oscillation_sd_deg": 0.3,
+      "tack_angle_median": 88
+    },
+    {
+      "race": 3,
+      "window": "16:28-17:16",
+      "twd_start": 266,
+      "twd_end": 274,
+      "twd_mean": 269,
+      "trend_deg_per_h": 20.7,
+      "oscillation_sd_deg": 1.5,
+      "tack_angle_median": 85
+    }
+  ],
+  "wind_comparison_gps_vs_station_vs_model": [
+    {
+      "hour": "14:00",
+      "gps_twd": 270,
+      "angels_gate_dir": 231.0,
+      "angels_gate_kn": 11.7,
+      "hrrr_dir": 259.0,
+      "hrrr_kn": 14.8
+    },
+    {
+      "hour": "15:00",
+      "gps_twd": 266,
+      "angels_gate_dir": 236.0,
+      "angels_gate_kn": 11.5,
+      "hrrr_dir": 263.0,
+      "hrrr_kn": 14.7
+    },
+    {
+      "hour": "16:00",
+      "gps_twd": 266,
+      "angels_gate_dir": 245.0,
+      "angels_gate_kn": 12.2,
+      "hrrr_dir": 267.0,
+      "hrrr_kn": 17.6
+    },
+    {
+      "hour": "17:00",
+      "gps_twd": 274,
+      "angels_gate_dir": 250.0,
+      "angels_gate_kn": 16.7,
+      "hrrr_dir": 268.0,
+      "hrrr_kn": 15.2
+    }
+  ],
+  "upwind": {
+    "legs": 20,
+    "legs_reaching_mark": 9,
+    "speed_kn_median": 4.859999999999999,
+    "vmg_kn_median": 3.545,
+    "tacks_per_leg_median": 2.0,
+    "pct_time_on_port_tack": 63,
+    "side_by_beat": [
+      {
+        "race": 1,
+        "mark": "W1",
+        "boats": 3,
+        "pct_time_right_mean": 69,
+        "boats_mostly_right": 2,
+        "pct_port_tack_mean": 48,
+        "course_skew_deg": 3,
+        "first_to_mark": "Chiavarini (ITA)",
+        "first_to_mark_pct_right": 83
+      },
+      {
+        "race": 2,
+        "mark": "W1",
+        "boats": 1,
+        "pct_time_right_mean": 49,
+        "boats_mostly_right": 0,
+        "pct_port_tack_mean": 47,
+        "course_skew_deg": 9,
+        "first_to_mark": "Hanson (GBR)",
+        "first_to_mark_pct_right": 49
+      },
+      {
+        "race": 3,
+        "mark": "W2",
+        "boats": 2,
+        "pct_time_right_mean": 72,
+        "boats_mostly_right": 2,
+        "pct_port_tack_mean": 90,
+        "course_skew_deg": 31,
+        "first_to_mark": "Hanson (GBR)",
+        "first_to_mark_pct_right": 58
+      },
+      {
+        "race": 3,
+        "mark": "W3",
+        "boats": 3,
+        "pct_time_right_mean": 10,
+        "boats_mostly_right": 0,
+        "pct_port_tack_mean": 63,
+        "course_skew_deg": 22,
+        "first_to_mark": "Chiavarini (ITA)",
+        "first_to_mark_pct_right": 14
+      }
+    ]
+  },
+  "downwind": {
+    "legs": 19,
+    "speed_kn_median": 7.39,
+    "vmg_kn_median": 5.86
+  },
+  "data_quality": "Tracker gaps of 5-13 min at the same times for all boats (mostly around mark roundings); beats cut by a gap are kept for speed but excluded from side-of-course stats."
+}
