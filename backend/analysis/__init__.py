@@ -9,13 +9,14 @@ Then tagging.py tags the text by topic and pulls out venue rules.
 
 from pathlib import Path
 
-from . import image_text, tagging, text_reader, transcripts
+from . import audio_text, image_text, tagging, text_reader, transcripts
 
 DEMO_DIR = Path(__file__).resolve().parent / "demo"
 
 BADGES = {".csv": "CSV", ".xlsx": "XLSX", ".xls": "XLS", ".gpx": "GPX", ".txt": "TXT", ".md": "TXT",
           ".pdf": "PDF", ".docx": "DOCX", ".vtt": "VTT", ".srt": "SRT", ".jpg": "JPG",
-          ".jpeg": "JPG", ".png": "PNG", ".webp": "IMG", ".json": "JSON"}
+          ".jpeg": "JPG", ".png": "PNG", ".webp": "IMG", ".json": "JSON",
+          **dict.fromkeys(audio_text.SUPPORTED, "AUDIO")}
 UPLOAD_TYPES = sorted(suffix.lstrip(".") for suffix in BADGES)
 
 # What the coach can upload, which tab uses it, and how we read it.
@@ -32,7 +33,7 @@ COACH_UPLOADS = [
      "used_in": "Coach brief, Strategy overview", "capability": "text", "required": False},
     {"item": "Photos of whiteboards, sketches, handwritten notes", "formats": "JPG, PNG",
      "entity": "Picture of text", "used_in": "Coach brief", "capability": "image", "required": False},
-    {"item": "Debrief or meeting transcripts", "formats": "VTT, SRT, TXT or paste",
+    {"item": "Debrief or meeting transcripts, voice memos", "formats": "VTT, SRT, TXT, paste, M4A, MP3, WAV or record",
      "entity": "Transcript", "used_in": "Coach brief, Sailor brief", "capability": "transcript",
      "required": False},
 ]
@@ -45,6 +46,8 @@ def map_file(name):
     suffix = Path(name).suffix.lower()
     lower = name.lower()
     badge = BADGES.get(suffix, suffix.lstrip(".").upper() or "FILE")
+    if suffix in audio_text.SUPPORTED:
+        return badge, "Transcript", "audio"
     if suffix in transcripts.SUPPORTED or "transcript" in lower:
         return badge, "Transcript", "transcript"
     if suffix in image_text.SUPPORTED:
@@ -71,6 +74,8 @@ def analyse(name, data):
         result.update(image_text.read_image_text(name, data))
     elif capability == "transcript":
         result.update(transcripts.parse_transcript(data.decode("utf-8", errors="replace")))
+    elif capability == "audio":
+        result.update(audio_text.transcribe_audio(data))
     elif capability == "text":
         result.update(text_reader.read_text(name, data))
     elif capability == "structured":
@@ -86,6 +91,15 @@ def analyse_pasted_transcript(title, text):
     result = {"name": title, "badge": "TXT", "entity": "Transcript", "capability": "transcript",
               "tags": {}}
     result.update(transcripts.parse_transcript(text))
+    if result["text"]:
+        result["tags"] = tagging.tag(result["text"])
+    return result
+
+
+def analyse_voice_memo(title, data):
+    """Transcribe a recording made in the dashboard and tag its text."""
+    result = {"name": title, "badge": "AUDIO", "entity": "Transcript", "capability": "audio", "tags": {}}
+    result.update(audio_text.transcribe_audio(data))
     if result["text"]:
         result["tags"] = tagging.tag(result["text"])
     return result

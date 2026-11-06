@@ -1,3 +1,6 @@
 streamlit>=1.66,<2
 requests>=2.32,<3
 pandas>=2.2,<3
+av>=14,<20
+mlx-whisper>=0.4.3,<0.5; sys_platform == "darwin" and platform_machine == "arm64"
+faster-whisper>=1.2,<2; sys_platform != "darwin" or platform_machine != "arm64"

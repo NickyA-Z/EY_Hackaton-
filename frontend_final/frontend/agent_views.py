@@ -577,13 +577,14 @@ def render_speed_area_map(
 
 @st.dialog("Upload coach files", width="large")
 def upload_dialog():
-    files_tab, transcript_tab = st.tabs(["Drag & drop or browse", "Paste a transcript"])
+    files_tab, transcript_tab, voice_tab = st.tabs(
+        ["Drag & drop or browse", "Paste a transcript", "Record a voice memo"])
     with files_tab:
         uploads = st.file_uploader(
             "Drag and drop files here, or click **Upload** to pick them from your computer",
             accept_multiple_files=True, type=analysis.UPLOAD_TYPES, key="dialog_uploads")
         st.caption("Sailing instructions · wind logs · GPS tracks · results · notes · "
-                   "photos of whiteboards · transcripts")
+                   "photos of whiteboards · transcripts · voice memos (M4A, MP3, WAV)")
         if st.button("Add files", type="primary", disabled=not uploads, width="stretch"):
             for upload in uploads:
                 data = upload.getvalue()
@@ -595,6 +596,15 @@ def upload_dialog():
                             placeholder="Coach: How did the first beat go?\nSailor: Right paid after 12:00.")
         if st.button("Add transcript", type="primary", disabled=not text.strip(), width="stretch"):
             st.session_state.pasted.append(analysis.analyse_pasted_transcript(unique_name(title), text))
+            st.rerun()
+    with voice_tab:
+        memo_title = st.text_input("Title", value="Voice memo", key="memo_title")
+        recording = st.audio_input("Press the microphone, speak, then press stop", key="memo_audio")
+        st.caption("Transcribed on this laptop with Whisper. The first run downloads the speech model.")
+        if st.button("Transcribe & add", type="primary", disabled=recording is None, width="stretch"):
+            with st.spinner("Transcribing…"):
+                st.session_state.pasted.append(
+                    analysis.analyse_voice_memo(unique_name(memo_title), recording.getvalue()))
             st.rerun()
 
 
