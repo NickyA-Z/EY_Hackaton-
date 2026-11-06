@@ -1,18 +1,12 @@
 """Local LA28 geolocation data retrieval."""
 
 import json
-from pathlib import Path
 
 import streamlit as st
 
+from backend import paths
 
-GEO_DATA_DIRECTORY = (
-    Path(__file__).resolve().parents[2]
-    / "geo_data"
-    / "data"
-    / "la28"
-    / "json"
-)
+GEO_DATA_DIRECTORY = paths.GEO_JSON_DIR
 GEO_DATA_FILES = ("bathymetry.json", "terrain.json")
 
 

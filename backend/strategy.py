@@ -6,14 +6,14 @@ Months are not hard-coded: every monthly file present in DATA is used.
 """
 
 import json
-from pathlib import Path
 
 import pandas as pd
 
+from backend import paths
 from backend.venue_time import open_meteo_to_local, utc_to_local
 
 # Single source of truth: the raw folder the downloader and the ingest inbox write to.
-DATA = Path(__file__).resolve().parent.parent / "src" / "conditions_June_2026" / "data" / "raw"
+DATA = paths.CONDITIONS_RAW_DIR
 MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July",
                "August", "September", "October", "November", "December"]
 HISTORY_YEARS = range(2021, 2026)

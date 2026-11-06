@@ -4,6 +4,8 @@ Logic behind the Location Agent views in `frontend/` (no Streamlit code here).
 
 | Module | Job | Data |
 | --- | --- | --- |
+| `paths.py` | **The one place that knows where data lives.** Every module below imports its data folder from here; `tests/test_paths.py` guards it | all of the folders below |
+| `previous_strategy.py` | Data for the 3D Previous strategy tab (tracks, weather, depth, triggered strategy documents) | `sailsync_api_results/`, `geo_data/data/la28/json/`, `src/conditions_June_2026/data/raw`, `rag-system/` |
 | `strategy.py` | Venue statistics, coach/sailor brief, Challenger findings, live check | `src/conditions_June_2026/data/raw` (Open-Meteo wind, NOAA tides) |
 | `race_analysis.py` | Which side the winners took on beat 1 | `sailsync_api_results/` (ILCA 7, 19 Jul 2026) |
 | `analysis/` | Read and tag coach uploads (see below) | uploads + `analysis/demo/` samples |

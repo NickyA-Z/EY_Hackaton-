@@ -14,10 +14,11 @@ plus the GPS tracks (tracks/<track_id>.csv) of the TOP_N finishers of each race.
 
 import json
 import os
-from pathlib import Path
 
 import pandas as pd
 import requests
+
+from backend import paths
 
 BASE = "https://www.sailsync.io/api/integrations/v1"
 EVENT_ID = 2  # San Pedro OCR 2026 (ILCA 6, ILCA 7)
@@ -25,7 +26,7 @@ BOAT_CLASS = "ILCA 7"
 DAYS = ["2026-07-19", "2026-07-20", "2026-07-22"]  # 8 races
 TOP_N = 6  # tracks per race: enough to average the mark positions and compare the leaders
 
-OUT = Path(__file__).resolve().parents[2] / "data" / "race_model"
+OUT = paths.RACE_MODEL_DIR
 
 
 def get(path, params=None, cache=None):

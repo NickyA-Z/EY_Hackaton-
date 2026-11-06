@@ -7,15 +7,12 @@ which side of the course it sailed. We compare the four winners with the fleet.
 
 import json
 import math
-from pathlib import Path
 
 import pandas as pd
 
-RESULTS = (
-    Path(__file__).resolve().parent.parent
-    / "data"
-    / "sailsync_api_results"
-)
+from backend import paths
+
+RESULTS = paths.SAILSYNC_DIR
 BEAT_MINUTES = 8  # long enough to commit to a side, short enough to stay on beat 1
 
 

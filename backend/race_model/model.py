@@ -13,15 +13,15 @@ Run: .venv/bin/python -m backend.race_model.model
 
 import json
 import math
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from backend import paths
 from backend.race_analysis import _to_metres
 from backend.strategy import angle_diff
 
-DATA = Path(__file__).resolve().parents[2] / "data" / "race_model"
+DATA = paths.RACE_MODEL_DIR
 AGGRESSIVE = 0.25  # furthest point >= 25% of the leg length away from the straight line
 
 

@@ -27,14 +27,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from backend import race_analysis, strategy
+from backend import paths, race_analysis, strategy
 from backend.race_model import model as race_model
 from backend.venue_time import VENUE_TZ
 
-ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "src" / "conditions_June_2026" / "data" / "raw"
-BATHYMETRY = ROOT / "geo_data" / "data" / "la28" / "json" / "bathymetry.json"
-CORPUS = ROOT / "rag-system"
+ROOT = paths.ROOT
+RAW = paths.CONDITIONS_RAW_DIR
+BATHYMETRY = paths.GEO_JSON_DIR / "bathymetry.json"
+CORPUS = paths.STRATEGY_CORPUS_DIR
 
 SESSION = "2796"
 STEP_S = 5            # resampling step of every track, seconds
