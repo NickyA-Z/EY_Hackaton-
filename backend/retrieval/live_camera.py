@@ -206,16 +206,25 @@ def current_conditions(latitude, longitude):
     """Measured/modelled conditions right now from Open-Meteo. Missing values come back as None, never 0."""
     out = {"wave_height_m": None, "wave_period_s": None, "wind_kt": None, "gust_kt": None, "time": None,
            "error": None}
-    try:
-        marine = requests.get(MARINE_URL, timeout=TIMEOUT, params={
-            "latitude": latitude, "longitude": longitude, "cell_selection": "sea",
-            "current": "wave_height,wave_period", "timezone": "America/Los_Angeles"}).json().get("current", {})
-        wind = requests.get(FORECAST_URL, timeout=TIMEOUT, params={
-            "latitude": latitude, "longitude": longitude, "wind_speed_unit": "kn",
-            "current": "wind_speed_10m,wind_gusts_10m", "timezone": "America/Los_Angeles"}).json().get("current", {})
-    except (requests.RequestException, ValueError) as error:
-        out["error"] = f"Open-Meteo unavailable ({type(error).__name__})"
-        return out
+    replies, problems = {}, []
+    for name, url, fields in (("marine", MARINE_URL, {"current": "wave_height,wave_period", "cell_selection": "sea"}),
+                              ("wind", FORECAST_URL, {"current": "wind_speed_10m,wind_gusts_10m",
+                                                      "wind_speed_unit": "kn"})):
+        try:
+            payload = requests.get(url, timeout=TIMEOUT, params={
+                "latitude": latitude, "longitude": longitude, "timezone": "UTC", **fields}).json()
+        except (requests.RequestException, ValueError) as error:
+            problems.append(f"{name}: unavailable ({type(error).__name__})")
+            payload = {}
+        if payload.get("error"):  # e.g. HTTP 429 "Daily API request limit exceeded"
+            problems.append(f"{name}: {payload.get('reason', 'error')}")
+        replies[name] = payload.get("current", {})
+    marine, wind = replies["marine"], replies["wind"]
+    out.update(wave_height_m=marine.get("wave_height"), wave_period_s=marine.get("wave_period"),
+               wind_kt=wind.get("wind_speed_10m"), gust_kt=wind.get("wind_gusts_10m"),
+               time=wind.get("time") or marine.get("time"),
+               error=("Open-Meteo " + "; ".join(problems)) if problems else None)
+    return out
     out.update(wave_height_m=marine.get("wave_height"), wave_period_s=marine.get("wave_period"),
                wind_kt=wind.get("wind_speed_10m"), gust_kt=wind.get("wind_gusts_10m"),
                time=wind.get("time") or marine.get("time"))

@@ -4,6 +4,10 @@ Claude vision judges the picture on its own (it is not shown the forecast), then
 that judgement with the measured wind / wave height. OpenCV (water_metrics.py) adds repeatable image numbers:
 an image check (night, fog, glare), whitecap and texture shares, and a rough estimate when Claude is unavailable.
 Independent sources agreeing is the evidence we show the coach; disagreement is shown too, never hidden.
+
+Scope (team decision, 2026-11-06): this is a stand-alone, display-only check on the Live view. Its result is
+NOT fed into the main analysis (live check, coach/sailor brief, strategy overview, what-if) nor into the RAG
+briefing. Keep it that way unless the team decides otherwise.
 Needs `pip install anthropic` and ANTHROPIC_API_KEY (or `ant auth login`).
 """
 

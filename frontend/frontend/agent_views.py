@@ -776,6 +776,8 @@ def render_live_check():
 
 
 # ---------- 7b. Water from a live camera ----------
+# Display only, by team decision (2026-11-06): the camera reading lives in st.session_state.water_reading and
+# is shown here and nowhere else. Do not pass it to the live check, the briefs, the strategy overview or RAG.
 
 VIDEO_TYPES = ["mp4", "mov", "m4v", "webm"]
 
