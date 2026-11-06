@@ -27,7 +27,6 @@ Where each dataset lives is defined in one file, [`src/backend/paths.py`](../src
 | [data_model.md](data_model.md) | The common weather / tide / track tables produced by the ingest layer, and the inbox app |
 | [race_model.md](race_model.md) | The model that compares how boats sailed each leg with the time they gained |
 | [geodata.md](geodata.md) | The bathymetry and terrain pipeline for the race venue |
-| [sea_dashboard.md](sea_dashboard.md) | An older, divergent copy of the dashboard, kept as found |
 
 ## Running things
 
