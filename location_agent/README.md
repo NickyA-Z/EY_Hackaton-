@@ -119,3 +119,41 @@ python -m location_agent.evaluate --date 2026-07-19 --rerun --note "what I chang
   - `verified_at_path`: correct value at the stated location
   - `in_pack_wrong_path`: the value exists, but the model cited the wrong location
   - `NOT_IN_PACK`: an invented number
+
+### Agent vs top three winners
+
+To fetch Clemente Seguel Lacámara's GPS track for the 19 July SailSync session,
+set `SAILSYNC_API_TOKEN` in the shell and run:
+
+```bash
+python sailsync_probe.py --session-id 2796 --track-id 15391 --output-dir data/sailsync_api_results
+```
+
+This requests only track 15391 and writes its CSV for the race replay. The
+replay locates the file by session and track ID, so its filename can safely
+normalize the accent in the sailor's name.
+
+After evaluating a strategy, run:
+
+```bash
+python -m location_agent.compare_winners
+python -m location_agent.compare_winners --evaluation path/to/evaluation.json
+```
+
+Writes `top3_comparison.md` and `top3_comparison.json` alongside the evaluation
+(or use `--output-dir`). Reports a four-boat leaderboard, simulation winner,
+margin over second place, and agent-vs-opponent margins in seconds and percent.
+Percentages use the opponent's simulated time as the denominator.
+
+By default, selects the three fastest **observed first-beat times** among the
+boats in `sailsync_api_results/winners`, separately per race. These are not
+official full-race podium positions. To compare three known podium boats instead:
+
+```bash
+python -m location_agent.compare_winners --boats "Matt Wearn (AUS)" "Duko Bos (NED)" "Elliot Hanson (GBR)"
+```
+
+All racing comparisons use simulated times on both sides. Missing times produce
+an incomplete result; failed calibration is flagged. The existing saved evaluation
+uses the mock agent strategy and rounded seconds. Re-run `location_agent.evaluate`
+with your strategy file first to compare a different agent run.
