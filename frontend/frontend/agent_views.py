@@ -4,6 +4,7 @@ Sailor brief, Strategy overview and Live."""
 import datetime as dt
 import html
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -13,8 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import requests  # noqa: E402
 
 from backend import analysis, race_analysis, strategy  # noqa: E402
-from backend.analysis import tagging  # noqa: E402
+from backend.analysis import tagging, water_metrics, water_view  # noqa: E402
 from backend.compute.map_grid import MAP_LAYERS, get_map_grid  # noqa: E402
+from backend.retrieval import live_camera  # noqa: E402
 from frontend.frontend.current_map import render_current_map  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
@@ -195,13 +197,14 @@ def render_layer_map(key, hour, height=420):
 
 @st.dialog("Upload coach files", width="large")
 def upload_dialog():
-    files_tab, transcript_tab = st.tabs(["Drag & drop or browse", "Paste a transcript"])
+    files_tab, transcript_tab, voice_tab = st.tabs(
+        ["Drag & drop or browse", "Paste a transcript", "Record a voice memo"])
     with files_tab:
         uploads = st.file_uploader(
             "Drag and drop files here, or click **Upload** to pick them from your computer",
             accept_multiple_files=True, type=analysis.UPLOAD_TYPES, key="dialog_uploads")
         st.caption("Sailing instructions · wind logs · GPS tracks · results · notes · "
-                   "photos of whiteboards · transcripts")
+                   "photos of whiteboards · transcripts · voice memos (M4A, MP3, WAV)")
         if st.button("Add files", type="primary", disabled=not uploads, width="stretch"):
             for upload in uploads:
                 st.session_state.uploaded[upload.name] = analyse_upload(upload.name, upload.getvalue())
@@ -212,6 +215,15 @@ def upload_dialog():
                             placeholder="Coach: How did the first beat go?\nSailor: Right paid after 12:00.")
         if st.button("Add transcript", type="primary", disabled=not text.strip(), width="stretch"):
             st.session_state.pasted.append(analysis.analyse_pasted_transcript(title, text))
+            st.rerun()
+    with voice_tab:
+        memo_title = st.text_input("Title", value="Voice memo", key="memo_title")
+        recording = st.audio_input("Press the microphone, speak, then press stop", key="memo_audio")
+        st.caption("Transcribed on this laptop with Whisper; the audio is not sent anywhere. "
+                   "The first run downloads the speech model and takes a few minutes.")
+        if st.button("Transcribe & add", type="primary", disabled=recording is None, width="stretch"):
+            with st.spinner("Transcribing…"):
+                st.session_state.pasted.append(analysis.analyse_voice_memo(memo_title, recording.getvalue()))
             st.rerun()
 
 
@@ -680,6 +692,11 @@ def render_strategy_overview():
 
 def render_live():
     st.header("Live strategy check")
+    render_live_check()
+    render_water_camera()
+
+
+def render_live_check():
     _, _, brief = current_brief()
     plan = st.session_state.get("plan")
     if brief is None or not plan:
@@ -756,3 +773,114 @@ def render_live():
             st.info(f"**{hours[index]['time']:%H:%M}** — {r['message']}"
                     + (f"\n\n{r['warning']}" if r["warning"] else ""),
                     icon="🔁" if r["status"] == "Change" else "⏰")
+
+
+# ---------- 7b. Water from a live camera ----------
+# Display only, by team decision (2026-11-06): the camera reading lives in st.session_state.water_reading and
+# is shown here and nowhere else. Do not pass it to the live check, the briefs, the strategy overview or RAG.
+
+VIDEO_TYPES = ["mp4", "mov", "m4v", "webm"]
+
+@st.cache_data(ttl=600, show_spinner=False)
+def camera_conditions(latitude, longitude):
+    return live_camera.current_conditions(latitude, longitude)
+
+
+def render_water_camera():
+    st.markdown("#### Water from a live camera")
+    st.caption("A snapshot of the harbour camera is read by Claude vision, measured with OpenCV, then checked "
+               "against the measured wind and waves. Use a camera whose terms allow it; or upload a screenshot.")
+    spot = strategy.VENUES[st.session_state.venue]
+    with st.expander("Camera location (for the wind and wave check)"):
+        st.caption("Defaults to the selected venue. Change it when the camera is somewhere else.")
+        lat_col, lon_col = st.columns(2)
+        lat_col.number_input("Latitude", -90.0, 90.0, value=spot["lat"], format="%.4f", key="camera_lat")
+        lon_col.number_input("Longitude", -180.0, 180.0, value=spot["lon"], format="%.4f", key="camera_lon")
+    url_tab, upload_tab = st.tabs(["Camera URL", "Upload a screenshot or video"])
+    with url_tab:
+        url = st.text_input("Camera snapshot or stream URL", key="camera_url",
+                            value=os.environ.get("WATER_CAM_URL", ""),
+                            placeholder="https://…/snapshot.jpg  or  https://…/stream.m3u8")
+        if st.button("Take snapshot & read the water", type="primary", disabled=not url.strip()):
+            try:
+                with st.spinner("Grabbing a frame…"):
+                    image, media_type = live_camera.grab_snapshot(url)
+            except live_camera.SnapshotError as error:
+                st.error(str(error))
+            else:
+                _assess_water(image, media_type, source=url)
+    with upload_tab:
+        shot = st.file_uploader("Camera screenshot, photo or video", key="camera_shot",
+                                type=["jpg", "jpeg", "png", "webp", *VIDEO_TYPES])
+        st.caption("Videos (MP4, MOV, M4V, WEBM): one frame from the middle of the clip is used.")
+        if st.button("Read the water", type="primary", disabled=shot is None):
+            if shot.name.rsplit(".", 1)[-1].lower() in VIDEO_TYPES:
+                try:
+                    with st.spinner("Taking a frame from the video…"):
+                        image, media_type = live_camera.frame_from_video(shot.getvalue())
+                except live_camera.SnapshotError as error:
+                    st.error(str(error))
+                else:
+                    _assess_water(image, media_type, source=shot.name)
+            else:
+                _assess_water(shot.getvalue(), shot.type or "image/jpeg", source=shot.name)
+
+    if st.session_state.get("water_reading"):
+        render_water_reading(st.session_state.water_reading)
+
+
+def render_water_reading(reading):
+    result = reading["result"]
+    metrics = result["metrics"]
+    picture, text = st.columns([1.4, 1], gap="medium")
+    with picture:
+        band = st.slider("Water area for OpenCV (share of image height, top → bottom)", 0.0, 1.0,
+                         value=reading.get("band", water_metrics.WATER_BAND), step=0.05, key="water_band")
+        if band != reading.get("band"):  # re-measure only; Claude's judgement is kept, not re-requested
+            metrics = water_metrics.measure(reading["image"], band)
+            result = water_view.combine(result["camera"], result["error"], metrics, result["numbers"])
+            reading.update(band=band, result=result)
+        show_overlay = metrics.get("overlay") and st.toggle("Show what OpenCV measured", key="camera_overlay")
+        st.image(metrics["overlay"] if show_overlay else reading["image"],
+                 caption=f"{reading['source']} · {reading['taken']:%H:%M}", width="stretch")
+    with text, st.container(border=True):
+        if result["verdict"]:
+            st.markdown(f"### {result['verdict']}")
+        st.write(result["summary"])
+        camera = result["camera"]
+        if camera:
+            if camera["notes"]:
+                st.caption(camera["notes"])
+            st.caption(f"Visibility {camera['visibility']} · light {camera['light']} · confidence "
+                       f"{camera['confidence']}" + (f" · wind signs: {camera['wind_signs']}" if camera["wind_signs"]
+                                                    else ""))
+        if not metrics.get("error"):
+            change = ""
+            previous = reading.get("previous")
+            if previous:
+                change = (f" · since {previous['taken']:%H:%M}: whitecaps "
+                          f"{metrics['whitecap_pct'] - previous['whitecap_pct']:+.1f} pt, texture "
+                          f"{metrics['texture_pct'] - previous['texture_pct']:+.1f} pt")
+            st.caption(f"OpenCV: whitecaps {metrics['whitecap_pct']:.1f} % · texture {metrics['texture_pct']:.1f} % "
+                       f"of the water area · brightness {metrics['brightness']:.2f}{change}")
+        else:
+            st.caption(metrics["error"])
+        if result["error"]:
+            st.warning(result["error"])
+        numbers = result["numbers"] or {}
+        if numbers.get("error"):
+            st.caption(numbers["error"])
+
+
+def _assess_water(image, media_type, source):
+    with st.spinner("Reading the water…"):
+        conditions = camera_conditions(st.session_state.camera_lat, st.session_state.camera_lon)
+        band = st.session_state.get("water_band", water_metrics.WATER_BAND)
+        result = water_view.assess_snapshot(image, media_type, conditions, band)
+    last = st.session_state.get("water_reading")
+    previous = None
+    if last and last["source"] == source and not last["result"]["metrics"].get("error"):  # same camera: show change
+        previous = {key: last["result"]["metrics"][key] for key in ("whitecap_pct", "texture_pct")}
+        previous["taken"] = last["taken"]
+    st.session_state.water_reading = {"image": image, "source": source, "taken": dt.datetime.now(),
+                                      "result": result, "previous": previous, "band": band}
