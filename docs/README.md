@@ -24,9 +24,15 @@ Where each dataset lives is defined in one file, [`src/backend/paths.py`](../src
 | [frontend.md](frontend.md) | How the dashboard works: tabs, the 3D Previous strategy view, controls, code structure |
 | [backend.md](backend.md) | The backend modules, and how coach uploads (text, photos, transcripts) are read and tagged |
 | [rag.md](rag.md) | How the strategy RAG works: trigger rules, retrieval, briefs, CLI |
+| [PLAN-AI-architecture.md](PLAN-AI-architecture.md) | Spec for the AI layer: routing, LangChain agents and tools, Sonnet 5.5 configuration, phases |
 | [data_model.md](data_model.md) | The common weather / tide / track tables produced by the ingest layer, and the inbox app |
 | [race_model.md](race_model.md) | The model that compares how boats sailed each leg with the time they gained |
 | [geodata.md](geodata.md) | The bathymetry and terrain pipeline for the race venue |
+| [location_agent.md](location_agent.md) | The AI strategist: briefing pack → model → strategy → evaluation by simulation |
+| [location_agent_july_data.md](location_agent_july_data.md) | The July 2021–2026 wind, tide and current downloads the strategist is built on |
+| [gps_analysis.md](gps_analysis.md) | What the winners' GPS tracks say: course, marks, wind, side of the course per beat |
+| [strategy_design.md](strategy_design.md), [strategy_brainstorm.md](strategy_brainstorm.md) | Design notes for the AI strategy: data inventory, build order, ideas (written before the code; paths updated, content not) |
+| [location_agent_features.md](location_agent_features.md) | The 9 feature blocks of the briefing pack and their 19 July values |
 
 ## Running things
 
