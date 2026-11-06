@@ -61,6 +61,42 @@ CSS = f"""
 .la-flow {{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 14px; }}
 .la-flow div {{ background:#fff7c9; border:1px solid #eadf8f; border-radius:6px; padding:8px 10px; font-size:.85rem; }}
 .la-flow div.done {{ background:#dff1e4; border-color:#b5dcbf; }}
+.la-ex {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:4px 0 14px; }}
+.la-ex > div {{ background:#fff; border:1px solid #d9e4e1; border-top:4px solid {TEAL}; border-radius:12px; padding:12px 14px; }}
+.la-ex h5 {{ margin:0 0 8px; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:#55666e; }}
+.la-ex .hero {{ font-size:1.5rem; font-weight:800; color:{INK}; line-height:1.15; }}
+.la-ex .step {{ display:flex; align-items:center; gap:8px; margin:5px 0; font-size:.85rem; }}
+.la-ex .step b {{ background:{INK}; color:#fff; border-radius:50%; min-width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:.75rem; }}
+.la-ex .bar {{ display:flex; align-items:center; gap:8px; margin:6px 0; font-size:.8rem; }}
+.la-ex .bar span.l {{ width:112px; color:#55666e; }}
+.la-ex .bar span.t {{ flex:1; background:#eef2f1; border-radius:5px; height:16px; }}
+.la-ex .bar span.t i {{ display:block; height:100%; border-radius:5px; background:{TEAL}; }}
+.la-ex .bar span.v {{ width:38px; font-weight:700; text-align:right; }}
+@media (max-width:900px) {{ .la-ex {{ grid-template-columns:1fr; }} }}
+.la-slide {{ background:#fbfcfb; border:1px solid #d9e4e1; border-radius:16px; padding:18px 20px; margin:6px 0 18px;
+  background-image:radial-gradient(#e3ebe9 1px, transparent 1px); background-size:18px 18px; }}
+.la-slide .title {{ font-size:1.25rem; font-weight:800; color:{INK}; margin-bottom:14px; }}
+.la-slide h6 {{ margin:0 0 6px; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:#55666e; }}
+.la-slide .pipe {{ display:grid; grid-template-columns:repeat(5,1fr); gap:26px; }}
+.la-slide .stage {{ position:relative; background:#fff; border:2px solid {TEAL}; border-radius:14px; padding:12px; }}
+.la-slide .stage:not(:last-child)::after {{ content:"➜"; position:absolute; right:-23px; top:42%; color:{ORANGE}; font-size:1.3rem; }}
+.la-slide .stage .n {{ position:absolute; top:-12px; left:12px; background:{ORANGE}; color:#fff; border-radius:50%;
+  width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.8rem; }}
+.la-slide .stage .big {{ font-size:1.6rem; font-weight:800; color:{INK}; margin:2px 0 6px; }}
+.la-slide .chip {{ display:inline-block; background:#e7f0ee; color:{INK}; border-radius:999px; padding:2px 8px; margin:2px 3px 0 0; font-size:.72rem; }}
+.la-slide .lower {{ display:grid; grid-template-columns:1.2fr 1fr 0.9fr; gap:14px; margin-top:16px; }}
+.la-slide .panel {{ background:#fff; border:1px solid #d9e4e1; border-radius:12px; padding:12px 14px; }}
+.la-slide .bar {{ display:flex; align-items:center; gap:8px; margin:7px 0; font-size:.8rem; }}
+.la-slide .bar span.l {{ width:118px; color:#55666e; }}
+.la-slide .bar span.t {{ flex:1; background:#eef2f1; border-radius:5px; height:18px; }}
+.la-slide .bar span.t i {{ display:block; height:100%; border-radius:5px; background:{TEAL}; }}
+.la-slide .bar span.v {{ width:38px; font-weight:700; text-align:right; }}
+.la-slide .big-o {{ font-size:2rem; font-weight:800; color:{TEAL}; line-height:1.1; }}
+.la-slide .val {{ display:flex; align-items:center; gap:10px; margin:10px 0; font-weight:600; color:{INK}; }}
+.la-slide .val b {{ background:{INK}; color:#fff; border-radius:10px; min-width:34px; height:34px; display:flex;
+  align-items:center; justify-content:center; font-size:1.1rem; }}
+@media (max-width:1000px) {{ .la-slide .pipe, .la-slide .lower {{ grid-template-columns:1fr; }}
+  .la-slide .stage::after {{ display:none; }} }}
 </style>
 """
 
@@ -879,6 +915,100 @@ def render_scenario_table(insight):
                "Switch side commits to the other side (impact −2) · Plan B prepares the light-air / late-breeze "
                "plan (likelihood −1, impact −1). Recommended levers are pre-selected.")
 
+# ---------- model explainer (demo toggle) ----------
+
+@st.cache_data(show_spinner=False)
+def race_model_outcome():
+    """Numbers for the race-model slide (None if no race data downloaded)."""
+    try:
+        from backend.race_model import model as race_model
+        table, marks, tracks = race_model.build()
+    except (SystemExit, FileNotFoundError):
+        return None
+    summary = race_model.summary(table)
+    summary["label"] = summary["side"] + " · " + summary["style"]
+    summary["ahead"] = summary["gained_pct"] * summary["legs"]
+    by_label = summary.groupby("label")[["ahead", "legs"]].sum()
+    fit = race_model.fit(table)
+    return {"rows": (by_label["ahead"] / by_label["legs"]).round().astype(int).sort_values(ascending=False).to_dict(),
+            "legs": int(len(table)), "boats": int(table["boat_id"].nunique()), "races": int(table["race"].nunique()),
+            "points": int(sum(len(t) for session in tracks.values() for t in session.values())),
+            "marks": int(len(marks)), "train": fit["train_rows"], "test": fit["test_rows"], "mae": fit["test_mae_s"]}
+
+
+def _bars(rows):
+    return "".join(f'<div class="bar"><span class="l">{esc(k)}</span><span class="t"><i style="width:{v}%"></i></span>'
+                   f'<span class="v">{v}%</span></div>' for k, v in rows.items())
+
+
+def _loop_svg(steps):
+    """Circular fine-tuning loop: steps placed on a ring with arrows between them."""
+    cx, cy, r = 150, 120, 82
+    nodes = []
+    for i, label in enumerate(steps):
+        angle = -math.pi / 2 + 2 * math.pi * i / len(steps)
+        x, y = cx + r * math.cos(angle), cy + r * math.sin(angle)
+        nodes.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="9" fill="{TEAL}"/>'
+                     f'<text x="{x:.0f}" y="{y + 4:.0f}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">{i + 1}</text>'
+                     f'<text x="{x + (14 if x >= cx else -14):.0f}" y="{y + 4:.0f}" font-size="11" fill="{INK}" '
+                     f'text-anchor="{"start" if x >= cx else "end"}">{esc(label)}</text>')
+    ring = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="#b9d3d0" stroke-width="2" stroke-dasharray="5 5"/>'
+    return (f'<svg viewBox="-60 0 420 240" width="100%" height="230">{ring}'
+            f'<text x="{cx}" y="{cy - 2}" text-anchor="middle" font-size="13" font-weight="800" fill="{INK}">repeat</text>'
+            f'<text x="{cx}" y="{cy + 14}" text-anchor="middle" font-size="10" fill="#55666e">until error stops falling</text>'
+            + "".join(nodes) + "</svg>")
+
+
+def _slide(title, stages, loop, outcome, value):
+    pipe = "".join(
+        f'<div class="stage"><div class="n">{i}</div><h6>{esc(head)}</h6><div class="big">{big}</div>'
+        + "".join(f'<span class="chip">{esc(c)}</span>' for c in chips) + "</div>"
+        for i, (head, big, chips) in enumerate(stages, 1))
+    values = "".join(f'<div class="val"><b>{icon}</b>{esc(text)}</div>' for icon, text in value)
+    return (f'<div class="la-slide"><div class="title">{esc(title)}</div><div class="pipe">{pipe}</div>'
+            f'<div class="lower"><div class="panel"><h6>Fine-tuning loop</h6>{loop}</div>'
+            f'<div class="panel"><h6>Outcome</h6>{outcome}</div><div class="panel"><h6>Value for the coach</h6>{values}</div>'
+            f'</div></div>')
+
+
+def model_explainer(kind, speed_model=None):
+    """Demo toggle: one whiteboard-style slide. Data -> model -> fine-tuning -> outcome -> value."""
+    if not st.toggle("Demo · how the model works", key=f"explain_{kind}"):
+        return
+    if kind == "race":
+        o = race_model_outcome()
+        if o is None:
+            st.info("Download the race data first: python -m backend.race_model.fetch_data")
+            return
+        stages = [
+            ("Data ingested", f"{o['points']:,}", ["GPS points", f"{o['boats']} boats", f"{o['races']} races", "mark times", "wind per leg"]),
+            ("Course rebuilt", f"{o['marks']}", ["buoys + starts", "median of boats", "at rounding time"]),
+            ("Modelled", f"{o['legs']}", ["boat-legs", "left / right", "how far out", "seconds vs fleet"]),
+            ("Fine-tuned", f"{o['train']} → {o['test']}", ["train: fleet", "test: winners", "25% threshold"]),
+            ("Outcome", f"{max(o['rows'].values())}%", ["best approach", "beats typical boat"]),
+        ]
+        loop = _loop_svg(["Train on the fleet", "Test on the winners", "Measure the error", "Tune features + threshold", "Add more race days"])
+        mae = f" · winner error {o['mae']:.0f} s" if o["mae"] is not None else ""
+        outcome = (_bars(o["rows"]) + f'<div class="la-small">% of legs ahead of the typical boat · 19 Jul, leg 1{mae}</div>')
+        value = [("◎", "Which side pays, per wind"), ("⚑", "Bold or safe: proven odds"), ("↻", "Gets sharper every regatta")]
+        st.markdown(_slide("Race model · which approach gains time", stages, loop, outcome, value), unsafe_allow_html=True)
+    else:
+        m = speed_model
+        stages = [
+            ("Data ingested", "44", ["GPS tracks", "19 Jul", "1 point / 1.7 s"]),
+            ("Features", "7", ["speed now", "30 s + 60 s trend", "acceleration", "turn rate", "heading"]),
+            ("Modelled", "ridge", ["small + explainable", "10 s steps", "30 s ahead"]),
+            ("Fine-tuned", f"{m.boats}", ["other boats", "chosen boat left out", "last 20% held back"]),
+            ("Outcome", f"{m.validation_mae_kt:.2f} kt", ["average error", f"{m.training_rows:,} samples"]),
+        ]
+        loop = _loop_svg(["Train on other boats", "Hold back race end", "Measure the error", "Tune smoothing + ridge", "Add more tracks"])
+        span = m.residual_high_kt - m.residual_low_kt
+        outcome = (f'<div class="big-o">{m.validation_mae_kt:.2f} kt</div><div class="la-small">average error, 30 s ahead</div>'
+                   f'<div class="big-o" style="margin-top:10px">±{span / 2:.1f} kt</div><div class="la-small">80% band</div>')
+        value = [("⏱", "See slowdowns 30 s early"), ("⛵", "Compare trim + tactics"), ("↻", "Same model at any venue")]
+        st.markdown(_slide("Speed model · speed 30 seconds ahead", stages, loop, outcome, value), unsafe_allow_html=True)
+
+
 def render_strategy_overview():
     insight, tide, brief = current_brief()
     st.header("Strategy overview")
@@ -895,6 +1025,7 @@ def render_strategy_overview():
     st.markdown('<div class="la-flow">' + "".join(
         f'<div class="{"done" if done else ""}">{"✓ " if done else ""}{esc(name)}</div>' for name, done in steps)
         + "</div>", unsafe_allow_html=True)
+    model_explainer("race")
     if brief is None:
         st.warning("Pick a wind direction and hour with historic data in Venue · Geoinformation first.")
         return
@@ -1007,6 +1138,7 @@ def render_speed_forecast():
         maximum, st.session_state.get("speed_replay_position", maximum // 2)
     )
     model = speed_model(horizon, selected_boat)
+    model_explainer("speed", model)
 
     st.subheader("GPS movement and predicted position")
     layer = st.selectbox(
