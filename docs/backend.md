@@ -12,6 +12,7 @@ Logic behind the Location Agent views in `src/frontend/` (no Streamlit code here
 | `boat_speed.py` | Short-horizon ILCA 7 speed forecast from SailSync tracks | `data/trajectories/sailsync/` |
 | `venue_time.py` | Turns source timestamps into Los Angeles wall-clock time | none |
 | `race_model/` | Which leg choices gained time (see [race_model.md](race_model.md)) | `data/race_model/` |
+| `ai/` | LangChain chat agent and AI briefing used by the dashboard (see [ai.md](ai.md)) | tools read `data/rag/`, `data/location_agent/`, `data/trajectories/` |
 | `rag/` | Strategy RAG: trigger rules, retrieval, briefs (see [rag.md](rag.md)) | `data/rag/`, index in `.chroma/` |
 | `ingest/` | Any native weather / tide / track file into one data model (see [data_model.md](data_model.md)) | `data/weather/`, `data/trajectories/sailsync/` |
 | `geodata/` | Bathymetry and terrain pipeline (see [geodata.md](geodata.md)) | `data/geo/` |

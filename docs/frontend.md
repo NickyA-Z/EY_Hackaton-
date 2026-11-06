@@ -13,6 +13,11 @@ risk appetite) and a scenario × appetite table. Picking a venue in the location
 which can also be edited there.
 
 
+**AI panels.** (Strategy plan works for both courses; Belmont is simulated in the forecast wind, not against a real race.) The Coach brief page has an **AI briefing** button and the Strategy page has **Strategy plan** (a LangGraph workflow)
+and **Ask the strategist**
+(`src/frontend/ai_views.py`, logic in `src/backend/ai`, see [ai.md](ai.md)). Without a working model setting they show
+"AI unavailable" and the page is otherwise unchanged.
+
 This Streamlit dashboard runs locally and retrieves historical marine forecast
 data from Open-Meteo for a selected coordinate, date range, and marine
 variable.
