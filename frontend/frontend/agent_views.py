@@ -69,7 +69,7 @@ CSS = f"""
 
 DEFAULTS = {
     "venue": list(strategy.VENUES)[0], "race_day": dt.date(2026, 6, 15), "time_of_day": "Midday",
-    "wind_sector": "SSW", "map_hour": 13, "layers": ["Wind", "Pressure", "Terrain effects"],
+    "wind_sector": "SSW", "map_hour": 13,
     "wi_sector": "SSW", "wi_strength": "Medium", "wi_breeze": "On time", "risk_appetite": "Balanced",
 }
 
@@ -652,22 +652,18 @@ def insight_panel(insight, tide, label):
 
 def render_venue_map(render_geo_data):
     st.subheader("Venue map")
-    c1, c2, c3 = st.columns([1.2, 1.2, 2.2])
+    c1, c2, _ = st.columns([1.3, 1.2, 2.5])
     c1.segmented_control("Wind direction", strategy.SECTORS, key="wind_sector")
     c2.segmented_control("Time of day", [11, 13, 15], key="map_hour", format_func=lambda h: f"{h}:00")
-    c3.pills("Layers", ["Wind", "Pressure", "Terrain effects", "Current"], selection_mode="multi", key="layers")
     insight, tide = current_insight()
-    if insight["n_days"] == 0:
-        st.warning(f"No {season()} day in 2021–2025 had {insight['sector']} wind at {insight['hour']}:00. "
-                   "Pick another direction or hour.")
-    else:
-        left, right = st.columns([2, 1], gap="medium")
-        with left:
-            st.markdown(venue_svg(strategy.sector_center(insight["sector"]), insight["speed"], insight["side"],
-                                  st.session_state.layers, tide["state"], insight["veer_rate"]),
-                        unsafe_allow_html=True)
-            st.caption("Schematic course area; arrows, pressure band and why-panel are computed from the data.")
-        with right:
+    left, right = st.columns([2, 1], gap="medium")
+    with left:
+        render_layer_map("venue_map", insight["hour"], height=460)  # same map as Live
+    with right:
+        if insight["n_days"] == 0:
+            st.warning(f"No {season()} day in 2021–2025 had {insight['sector']} wind at {insight['hour']}:00. "
+                       "Pick another direction or hour.")
+        else:
             insight_panel(insight, tide, f"Typical at {insight['hour']}:00 · from {insight['sector']}")
             st.markdown(f'<div class="la-card la-small">Based on {insight["n_days"]} historic days '
                         f'(of {insight["total_days"]}) with similar wind + your uploaded logs.</div>',
