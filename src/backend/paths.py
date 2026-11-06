@@ -37,7 +37,17 @@ WEATHER_SAMPLES_DIR = WEATHER_DIR / "samples"
 # list that backend/geodata reads.
 GEO_DIR = DATA_DIR / "geo"
 GEO_VENUES_FILE = GEO_DIR / "venues.yaml"
-GEO_JSON_DIR = GEO_DIR / "la28" / "json"
+GEO_LA28_DIR = GEO_DIR / "la28"
+GEO_JSON_DIR = GEO_LA28_DIR / "json"
 
 # Sample coach uploads (notes, transcripts, sailing instructions) for the demo.
 DEMO_UPLOADS_DIR = DATA_DIR / "demo_uploads"
+
+# The AI strategist (backend/location_agent): reconstructed courses, its inputs, and everything it writes.
+LOCATION_AGENT_DIR = DATA_DIR / "location_agent"
+LOCATION_AGENT_COURSE_DIR = LOCATION_AGENT_DIR / "course"      # <date>.json: start line and marks, coordinates only
+LOCATION_AGENT_INPUT_DIR = LOCATION_AGENT_DIR / "inputs"       # <date>_rag_insights.txt
+LOCATION_AGENT_OUTPUT_DIR = LOCATION_AGENT_DIR / "output"      # <date>_<area>/ briefing packs, strategies, evaluations
+LOCATION_AGENT_CONDITIONS_FILE = LOCATION_AGENT_DIR / "conditions_july.parquet"   # built by location_agent.ingest
+LOCATION_AGENT_RAW_DIR = LOCATION_AGENT_DIR / "raw"            # July downloads: hrrr*, noaa_coops, open_meteo_marine
+LOCATION_AGENT_GPS_RESULTS_DIR = LOCATION_AGENT_DIR / "gps_results"   # wind, legs, marks from the race GPS (gps_analysis)
