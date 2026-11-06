@@ -1,0 +1,84 @@
+# Location Agent - feature settings.
+#
+# These are MEASUREMENT settings used by features.py to compute the numbers in the briefing pack.
+# They are not decision thresholds and are not sent to the AI as rules (the pack records which
+# values were used under context.settings). Edit a value here and rebuild the pack:
+#     python -m location_agent.features --date 2026-07-19 --area port_la_course
+# --window and --cutoff on the command line override race_window_local / morning_cutoff_hour.
+#
+# Each entry: value (what the code uses) + meaning + source (where the value came from).
+
+race_window_local:
+  value: [13, 17]
+  meaning: Local hours of racing whose wind is summarised (start inclusive, end exclusive). Used by all blocks.
+  source: 2026 test-event races ran 14:13-17:16; Long Beach Race Week briefing - wind peaks 14:00-17:00.
+
+morning_cutoff_hour:
+  value: 11
+  meaning: Backtest only - last local hour of MEASURED race-day data allowed (block 5 morning observations).
+  source: Choice - roughly dock-out time. Use 8 for a strict 08:00 briefing.
+
+veer_window_local:
+  value: [12, 17]
+  meaning: Local hours over which the wind turn rate (deg/h) is fitted. Blocks 2 and 9.
+  source: Brief - the sea breeze builds from late morning; window covers build-up + racing.
+
+climatology_hours_local:
+  value: [10, 18]
+  meaning: Local hours shown in the typical-day tables (inclusive). Blocks 2 and 4.
+  source: Choice - covers sea-breeze onset to end of racing.
+
+sea_breeze_onset:
+  value: {min_speed_kn: 8, sector_from_deg: [225, 295], min_duration_h: 1}
+  meaning: Defines when the sea breeze counts as 'established' - used only to MEASURE onset time (block 5).
+  source: Choice - 8 kn ~ steady racing breeze; 225-295 deg = WSW-WNW sector around the July mean (223 -> 262 deg by hour).
+
+land_sea_dT_inland_hour:
+  value: 14
+  meaning: Local hour of the inland temperature used for the land-sea temperature difference (block 5).
+  source: Brief - temperature difference drives the sea breeze; 14:00 ~ peak inland heating.
+
+lanes:
+  value: {offset_m: 300, points: 9, from_fraction: 0.1, to_fraction: 0.9}
+  meaning: Left/right lanes sampled this far either side of the rhumb line, at evenly spaced points along the beat. Blocks 3, 6, 7.
+  source: Choice - 2026 GPS tracks went 150-650 m off the rhumb line; 300 m ~ typical side excursion.
+
+land_definition:
+  value: {bathymetry_land_m: 0, terrain_land_m: 1, terrain_obstacle_m: 2}
+  meaning: Bathymetry elevation >= this = land/breakwater; terrain above these heights = land / counted obstacle. Blocks 3, 7.
+  source: Data datums (NAVD88 ~ sea level); small margins filter noise.
+
+upwind_terrain_scan:
+  value: {length_m: 12000, step_m: 30}
+  meaning: How far and in what steps the upwind terrain scan walks (block 7).
+  source: Length ~ extent of the terrain raster (+10 km box); step = raster resolution (~30 m).
+
+shelter_table_dirs_deg:
+  value: {from: 230, to: 340, step: 10}
+  meaning: Wind directions for the 'which directions put the course in a terrain shadow' table (block 7).
+  source: Choice - sea-breeze sector plus north-west.
+
+shoreline_radius_m:
+  value: 3000
+  meaning: Land within this distance of the beat midpoint defines nearest land and shoreline orientation (block 3).
+  source: Choice - covers the San Pedro breakwater ~1.4-2 km away.
+
+start_line_sensitivity_deg:
+  value: 5
+  meaning: Start-line bias is also computed with the wind this many degrees left and right (block 8).
+  source: Choice - typical direction error / swing.
+
+boat_class_priors:
+  value: {class: ILCA 7, tack_angle_deg: 90, upwind_vmg_kn: 3.4}
+  meaning: Angle between the two close-hauled courses over ground, and upwind VMG; used for beat time and laylines (block 9).
+  source: Generic single-handed dinghy rule of thumb (tacks through ~90 deg; ~4.8 kn at ~45 deg to the wind in 12-16 kn = VMG ~3.4 kn). Deliberately NOT measured from the 19 Jul GPS tracks, so the backtest does not use race-day information. Replace with ILCA 7 polars when available.
+
+morning_cloud_hours_local:
+  value: [9, 12]
+  meaning: Local hours averaged for "morning cloud" (block 5). The marine layer usually burns off in this window.
+  source: Measurement window chosen to sit before the sea-breeze onset; not a decision threshold.
+
+cloud_clear_pct:
+  value: 30
+  meaning: Total cloud cover % below which the sky counts as "cleared" when finding the burn-off time (block 5).
+  source: Measurement definition (mostly-clear sky); change here and the burn-off times are re-measured.
