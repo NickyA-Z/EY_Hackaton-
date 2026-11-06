@@ -14,8 +14,9 @@ Logic behind the Location Agent views in `frontend/` (no Streamlit code here).
 | --- | --- | --- | --- |
 | 1. Text reading | `text_reader.py` | TXT, MD, CSV, JSON, DOCX, PDF | Nothing for TXT/MD/DOCX. PDF: `pip install pypdf` |
 | 2. Picture of text | `image_text.py` | JPG, PNG, WEBP, GIF (whiteboards, handwriting, scanned pages, course sketches) | Claude vision: `pip install anthropic` + `ANTHROPIC_API_KEY` (or `ant auth login`). Fallback: `brew install tesseract` |
-| 3. Transcripts | `transcripts.py` | VTT, SRT, pasted text with `Speaker:` / `[hh:mm]` lines | Nothing. Audio must be transcribed first (e.g. Whisper) |
-| Tagging | `tagging.py` | Output of 1–3 | Nothing (keyword rules; swap for an LLM later) |
+| 3. Transcripts | `transcripts.py` | VTT, SRT, pasted text with `Speaker:` / `[hh:mm]` lines | Nothing |
+| 4. Voice memos | `audio_text.py` | M4A, MP3, WAV, AAC, OGG, FLAC, WEBM, CAF, or a recording made in the upload dialog | `av` + mlx-whisper (Apple Silicon, `whisper-large-v3-turbo`); fallback faster-whisper (`small`, any CPU). Runs locally; first run downloads the model |
+| Tagging | `tagging.py` | Output of 1–4 | Nothing (keyword rules; swap for an LLM later) |
 
 `analysis/__init__.py` routes each file: name + extension → common-model entity → capability.
 
@@ -29,7 +30,7 @@ Logic behind the Location Agent views in `frontend/` (no Streamlit code here).
 | Race results | CSV, XLSX | Strategy overview | No |
 | Coach notes & written debriefs | TXT, MD, DOCX, PDF | Coach brief, Strategy overview | No |
 | Photos of whiteboards, sketches, handwritten notes | JPG, PNG | Coach brief | No |
-| Debrief or meeting transcripts | VTT, SRT, TXT or paste | Coach brief, Sailor brief | No |
+| Debrief or meeting transcripts, voice memos | VTT, SRT, TXT, paste, M4A, MP3, WAV or record | Coach brief, Sailor brief | No |
 
 Structured uploads (wind logs, tracks, results) are mapped but not parsed yet.
 

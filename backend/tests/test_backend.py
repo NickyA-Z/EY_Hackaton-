@@ -7,7 +7,7 @@ import zipfile
 import pandas as pd
 
 from backend import analysis, race_analysis, strategy
-from backend.analysis import tagging, text_reader, transcripts
+from backend.analysis import audio_text, tagging, text_reader, transcripts
 
 # --- strategy ---
 assert strategy.angle_diff(350, 10) == 20 and strategy.angle_diff(10, 350) == -20
@@ -30,6 +30,7 @@ assert analysis.map_file("wind_log.csv")[1] == "Wind observations"
 assert analysis.map_file("sailing_instructions.pdf")[1] == "Venue rules"
 assert analysis.map_file("whiteboard.jpg")[2] == "image"
 assert analysis.map_file("call.vtt")[2] == "transcript"
+assert analysis.map_file("Voice memo 12.m4a") == ("AUDIO", "Transcript", "audio")
 assert analysis.map_file("x.bin")[1] is None
 
 # --- capability 1: text ---
@@ -45,6 +46,13 @@ parsed = transcripts.parse_transcript(srt)
 assert parsed["method"] == "transcript (srt)" and parsed["segments"][0]["speaker"] == "Coach"
 assert transcripts.parse_transcript("[01:02] Sailor: windy")["segments"][0]["time"] == "01:02"
 assert transcripts.parse_transcript("")["error"]
+
+# --- capability 4: voice memos (no speech model needed: engines are not called) ---
+whisper = audio_text.to_result([{"start": 3.4, "text": " Go right. "}, {"start": 3725, "text": "Ok"},
+                                {"start": 9, "text": "  "}], "whisper (test)")
+assert [s["time"] for s in whisper["segments"]] == ["00:03", "1:02:05"] and whisper["text"] == "Go right.\nOk"
+assert audio_text.to_result([], "whisper (test)")["error"] == "No speech recognised"
+assert audio_text.transcribe_audio(b"not audio")["error"]  # unreadable or PyAV missing: an error, never a crash
 
 # --- tagging ---
 assert "Wind" in tagging.tag("The breeze veered right.")
