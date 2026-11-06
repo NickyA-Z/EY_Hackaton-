@@ -1,7 +1,7 @@
 # Sailing team-strategy RAG
 
 Gives the coach a daily strategy briefing and answers free-form questions, grounded in the markdown corpus in
-[`rag-system/`](../../../rag-system/). The corpus is **synthetic hackathon data**, so the output demonstrates the
+[`data/rag/`](../data/rag/). The corpus is **synthetic hackathon data**, so the output demonstrates the
 mechanism and is not real sailing advice.
 
 ## How it works
@@ -23,7 +23,7 @@ conditions (wind, gusts, current, waves, ...)
 
 **Why document choice is code, not vector search.** The corpus triggers are numeric thresholds
 (`wind_mean_kt >= 18`, `current_kt >= 0.5`). Embeddings cannot evaluate a threshold, so `triggers.py` does it
-deterministically and orders the result by the priority list in `rag-system/00_README_corpus_index.md`
+deterministically and orders the result by the priority list in `data/rag/00_README_corpus_index.md`
 (safety > venue > current > wind-type > defaults). Vectors are used only for free-form questions.
 
 ## Setup
@@ -47,11 +47,11 @@ Create a `.env` in the repository root (it is gitignored; never commit it):
 ## Usage
 
 ```bash
-uv run python -m ey_hackathon.rag index                     # embed new/changed sections into .chroma/
-uv run python -m ey_hackathon.rag select --wind 22 --gust 27 --current 1.0   # which documents apply (no network)
-uv run python -m ey_hackathon.rag search "wind shadow from the hills" --show
-uv run python -m ey_hackathon.rag brief  --wind 22 --gust 27 --current 1.0 --waves 1.3
-uv run python -m ey_hackathon.rag ask    "when do we avoid the left side?" --wind 14
+uv run python -m backend.rag index                     # embed new/changed sections into .chroma/
+uv run python -m backend.rag select --wind 22 --gust 27 --current 1.0   # which documents apply (no network)
+uv run python -m backend.rag search "wind shadow from the hills" --show
+uv run python -m backend.rag brief  --wind 22 --gust 27 --current 1.0 --waves 1.3
+uv run python -m backend.rag ask    "when do we avoid the left side?" --wind 14
 ```
 
 Condition flags: `--wind --gust --wind-rise --rain --cloud --cloud-change --current --land-sea-diff --gradient
@@ -81,14 +81,14 @@ Condition flags: `--wind --gust --wind-rise --rain --cloud --cloud-change --curr
 | `cli.py`, `__main__.py` | Command line |
 | `config.py` | Paths and model names from `.env` |
 
-Tests are in `tests/` (`uv run pytest`) and need no API keys: embeddings are faked.
+Tests are in `src/backend/tests/rag/` (`uv run pytest`) and need no API keys: embeddings are faked.
 
 ## Known limitations
 
 - **Live embedding, `search` and `ask` were not verified end to end** when this was written, because the available
   OpenAI key was rejected. The Claude briefing was verified live; the vector path is covered only by tests with a fake embedder.
   Check retrieval quality before relying on it.
-- Weather inputs are entered by hand. Only waves and current exist in `sea_dashboard/marine_api.py`; wind, gusts,
+- Weather inputs are entered by hand. Only waves and current exist in `src/backend/retrieval/marine_api.py`; wind, gusts,
   rain and cloud would need a forecast source.
 - Judgement calls where the corpus is silent: TS-02 is applied for 8 up to (not including) 18 kt, because the corpus
   leaves 17-18 kt uncovered; TS-09 sits with the wind-type documents and TS-11 last in the priority order.

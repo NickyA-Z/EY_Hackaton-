@@ -1,23 +1,23 @@
-# Processed data model (`data/processed/`)
+# Processed data model (`data/weather/processed/`)
 
-What the ingest layer (`ingest/`) produces from the files in `data/raw/`, and how to use it.
+What the ingest layer (`src/backend/ingest/`) produces from the files in `data/weather/raw/`, and how to use it.
 
 ```
-data/raw/  (native formats)  ──►  ingest/<source>.py parse()  ──►  run.py  ──►  data/processed/
+data/weather/raw/  (native formats)  ──►  backend/ingest/<source>.py parse()  ──►  run.py  ──►  data/weather/processed/
   metar/*.csv          METAR text                                      observations.parquet
   noaa_coops/*.csv     CO-OPS CSV                                      tide_events.parquet
   ndbc/*.txt.gz        NDBC fixed-width                                tracks.parquet
   open_meteo/*.json    Open-Meteo JSON
   tracks/**/*.csv|gpx  GPS tracks (CSV or GPX)
-../../sailsync_api_results/  SailSync tracks, read in place (config.EXTERNAL_DIRS)
+data/trajectories/sailsync/  SailSync tracks, read in place (config.EXTERNAL_DIRS)
 ```
 
 Regenerate with:
 
 ```bash
-cd src/conditions_June_2026
-../../.venv/bin/python ingest/run.py        # writes parquet + prints a verification report
-../../.venv/bin/python -m pytest -q         # parser tests
+# from the repo root
+PYTHONPATH=src .venv/bin/python -m backend.ingest.run      # writes parquet + prints a verification report
+.venv/bin/python -m pytest -q src/backend/tests/ingest   # parser tests
 ```
 
 ---
@@ -130,7 +130,7 @@ Parsers:
 - `ingest/gpx.py` reads GPX.
 - Both use `ingest/tracks.py` for speed and course.
 
-The SailSync files are read **in place** from `sailsync_api_results/` (repo root), not copied into `data/raw`. Tracks added through the inbox go to `data/raw/tracks/`.
+The SailSync files are read **in place** from `data/trajectories/sailsync/`, not copied into `data/weather/raw`. Tracks added through the inbox go to `data/weather/raw/tracks/`.
 
 Caveat: the maximum speeds (up to ~13 kn) probably include being towed in after racing, or GPS noise. Use medians, or cut the tracks to the race windows in `probe_report.json`, before comparing sailors.
 
@@ -185,8 +185,8 @@ All unit conversions are in `ingest/units.py`.
 ```python
 import pandas as pd
 
-obs = pd.read_parquet("data/processed/observations.parquet")
-tides = pd.read_parquet("data/processed/tide_events.parquet")
+obs = pd.read_parquet("data/weather/processed/observations.parquet")
+tides = pd.read_parquet("data/weather/processed/tide_events.parquet")
 
 # Local time for display (America/Los_Angeles, DST-aware)
 obs["time_local"] = obs["time_utc"].dt.tz_convert("America/Los_Angeles")
@@ -217,20 +217,20 @@ The product's main point is that any coach file can join the same table:
 2. Add one `Source(...)` line in `ingest/registry.py`.
 3. Add a tiny fixture and a test in `tests/`.
 
-`run.py` warns about any file in `data/raw/` that no parser claims, so new formats don't go unnoticed.
+`run.py` warns about any file in `data/weather/raw/` that no parser claims, so new formats don't go unnoticed.
 
 ---
 
 ## 7. Adding files through the inbox app
 
 ```bash
-cd src/conditions_June_2026
+# from the repo root
 export ANTHROPIC_API_KEY=...                 # optional: lets Claude classify unknown files
-../../.venv/bin/streamlit run app/inbox_app.py
+PYTHONPATH=src .venv/bin/streamlit run src/frontend/inbox_app.py
 ```
 
-1. **Receive:** files dropped in the app, or copied into `data/inbox/`, are quarantined there. Names are sanitised and never overwritten. This folder is git-ignored.
-2. **Classify** (`ingest/classify.py`):
+1. **Receive:** files dropped in the app, or copied into `data/weather/inbox/`, are quarantined there. Names are sanitised and never overwritten. This folder is git-ignored.
+2. **Classify** (`src/backend/ingest/classify.py`):
    - First, each category's `sniff()` rule runs. A score of at least 0.9 wins without calling an LLM.
    - Otherwise Claude (`claude-opus-5-5`) gets the file name, size and first 40 lines.
      - The sample is treated as untrusted data.
@@ -241,11 +241,11 @@ export ANTHROPIC_API_KEY=...                 # optional: lets Claude classify un
    - The app shows where the file will be stored and runs a dry parse: rows, rows inside `REQUESTED_MONTHS`, time range and validation problems.
    - Duplicates and name clashes are blocked before confirming.
 4. **Confirm:**
-   - The file is moved to `data/raw/<subdir>/<normalised name>` and recorded in `data/raw/manifest.json` (hash, category, `is_sample`, who classified it, when).
+   - The file is moved to `data/weather/raw/<subdir>/<normalised name>` and recorded in `data/weather/raw/manifest.json` (hash, category, `is_sample`, who classified it, when).
    - The tables are then rebuilt.
    - `run.py` applies `is_sample` from the manifest.
-5. **Reject:** the file is moved to `data/inbox/.rejected/`. Nothing is deleted automatically.
+5. **Reject:** the file is moved to `data/weather/inbox/.rejected/`. Nothing is deleted automatically.
 
-GPS tracks (`gps_track` for CSV, `gpx_track` for GPX) go to `data/raw/tracks/` and into `tracks.parquet`.
+GPS tracks (`gps_track` for CSV, `gpx_track` for GPX) go to `data/weather/raw/tracks/` and into `tracks.parquet`.
 
-Categories without a parser yet (`geo_raster`, `coach_notes`, `other_tabular`) are stored under `data/raw/geo`, `notes` or `other`. They are not loaded into the tables until a parser is added.
+Categories without a parser yet (`geo_raster`, `coach_notes`, `other_tabular`) are stored under `data/weather/raw/geo`, `notes` or `other`. They are not loaded into the tables until a parser is added.

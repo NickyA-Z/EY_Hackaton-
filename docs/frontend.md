@@ -1,8 +1,8 @@
 # LA28 Location Agent dashboard
 
 The single-row top navigation holds **Live**, **Venue** (Geoinformation and Rules),
-**Briefs** (Coach and Sailor) and **Strategy** (`frontend/agent_views.py`, logic in
-`../backend`, see `../backend/README.md`). Two icons sit at the right: **upload** opens
+**Briefs** (Coach and Sailor) and **Strategy** (`src/frontend/agent_views.py`, logic in
+`src/backend`, see [backend.md](backend.md)). Two icons sit at the right: **upload** opens
 the Coach file page (upload, preview and delete files) and **location** opens the
 venue, class, race-day, time-of-day and coordinate settings. **Venue · Geoinformation** shows the venue map and one **Load** control that
 fetches location geodata, the regional map and the point series together. The regional
@@ -29,7 +29,7 @@ Click the map to inspect the local value and, when available, direction.
 From the project root:
 
 ```bash
-./frontend/run_local.sh
+./src/frontend/run_local.sh
 ```
 
 Then open <http://127.0.0.1:8502>.
@@ -38,14 +38,14 @@ The launcher uses `uv` to create an isolated environment and install the
 packages from `requirements.txt`. To use an alternative port:
 
 ```bash
-PORT=8503 ./frontend/run_local.sh
+PORT=8503 ./src/frontend/run_local.sh
 ```
 
 ## Manual start
 
 ```bash
-PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt \
-  streamlit run frontend/frontend/dashboard.py
+cd src/frontend && PYTHONPATH=.. uv run --python 3.12 --with-requirements requirements.txt \
+  streamlit run dashboard.py
 ```
 
 ## Dashboard controls
@@ -86,13 +86,13 @@ What the data can and cannot do:
 - All weather sources are 8-11 km from the course (Open-Meteo model cell, NOAA piers F, J, S,
   NDBC 46222) and hourly or 10-minute. They are regional values, not a wind field over the
   race area. SailSync's own wind has a direction (265°) and no speed.
-- The strategy documents in `rag-system/` are synthetic. The tab shows which ones the
+- The strategy documents in `data/rag/` are synthetic. The tab shows which ones the
   conditions trigger and which inputs the rules could not check; it does not validate them.
 - Depth is shaded over 0-30 m only; the race area is deeper, so the layer shows the
   breakwater and coast, not the seabed under the fleet.
 
-Code: `frontend/previous_strategy_view.py` (scene and panels), `../backend/previous_strategy.py`
-(data, no Streamlit), tests in `../backend/tests/test_previous_strategy.py`.
+Code: `src/frontend/previous_strategy_view.py` (scene and panels), `src/backend/previous_strategy.py`
+(data, no Streamlit), tests in `src/backend/tests/test_previous_strategy.py`.
 
 ## Regional map layers
 
@@ -132,15 +132,15 @@ navigation.
 
 | File | Responsibility |
 | --- | --- |
-| `frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
-| `frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
-| `frontend/previous_strategy_view.py` | Previous strategy tab: 3D time-cube scene (pydeck), layer picker, conditions, left/right and strategy-document panels |
-| `frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
-| `../backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
-| `../backend/retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
-| `../backend/retrieval/geolocation.py` | Approved LA28 terrain and bathymetry JSON loading |
-| `run_local.sh` | Reproducible local launcher and dependency environment |
+| `src/frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
+| `src/frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
+| `src/frontend/previous_strategy_view.py` | Previous strategy tab: 3D time-cube scene (pydeck), layer picker, conditions, left/right and strategy-document panels |
+| `src/frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
+| `src/backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
+| `src/backend/retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
+| `src/backend/retrieval/geolocation.py` | Approved LA28 terrain and bathymetry JSON loading |
+| `src/frontend/run_local.sh` | Reproducible local launcher and dependency environment |
 
 The existing Location Agent layout remains the main interface. UI code is in
-`frontend/`; marine calculations and data retrieval are grouped with the
-existing root-level `backend/` package.
+`src/frontend/`; marine calculations and data retrieval are grouped with the
+`src/backend/` package.

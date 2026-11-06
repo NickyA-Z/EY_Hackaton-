@@ -1,6 +1,6 @@
-# geo_data: bathymetry + terrain for the race venue
+# Geodata: bathymetry + terrain for the race venue
 
-This folder is the **geographic-data workstream** of the EY hackathon repo. It pulls **water depth (bathymetry)** and **land height (terrain)** for a sailing race venue and saves them as GeoTIFF and standardized JSON for the AI coach agent. Wind, weather and currents come from other workstreams.
+Code: `src/backend/geodata/`. Data: `data/geo/`. This is the **geographic-data workstream** of the EY hackathon repo. It pulls **water depth (bathymetry)** and **land height (terrain)** for a sailing race venue and saves them as GeoTIFF and standardized JSON for the AI coach agent. Wind, weather and currents come from other workstreams.
 
 First venue: **LA 2028 Olympic sailing**, 16–28 July 2028.
 - Boards race off Belmont Shore, Long Beach.
@@ -8,17 +8,16 @@ First venue: **LA 2028 Olympic sailing**, 16–28 July 2028.
 
 Official course areas aren't published yet, so `venues.yaml` holds **candidate areas**.
 
-## Folder layout (inside `geo_data/`)
+## Where things are
 ```
-README.md            this file
-requirements.txt     8 Python packages
-.gitignore           excludes .venv, __pycache__, data/*/raw
-venues.yaml          venues + race areas (edit this to add a home venue or fix course areas)
-geodata/             the scripts (see below)
-data/la28/           the extracted data for LA28 (see below)
+docs/geodata.md                  this file
+src/backend/geodata/             the scripts (see below); requirements.txt lists the 8 Python packages they need
+data/geo/venues.yaml             venues + race areas (edit this to add a home venue or fix course areas)
+data/geo/la28/                   the extracted data for LA28 (see below)
 ```
+Intermediate downloads (`data/geo/*/raw/`) are git-ignored; the pipeline re-creates them.
 
-## Scripts (`geodata/`)
+## Scripts (`src/backend/geodata/`)
 | Script | What it does |
 |---|---|
 | `run.py` | **Entry point.** Runs 3 steps per venue: `bathymetry` → `terrain` → `json`. Tries the best source first and falls back if it's unavailable. Writes `catalog.json`. Options: `--venue`, `--steps`, `--force`, `--list`, `--list-sources`. |
@@ -30,7 +29,7 @@ data/la28/           the extracted data for LA28 (see below)
 | `export_json.py` | **Standardization.** Converts each GeoTIFF into grid JSON (see the format below). Deterministic, offline, no AI. |
 | `catalog.py` | Writes `data/<venue>/catalog.json`: for each dataset, the source, link, how it was accessed, licence, datum, resolution, date, box, file paths and stats. |
 
-## Data (`data/la28/`, ~29 MB)
+## Data (`data/geo/la28/`, ~29 MB)
 | File | Type | What it is |
 |---|---|---|
 | `json/bathymetry.json` | Grid JSON, 15.5 MB | **Main bathymetry deliverable.** 2184 × 1301 values, ~10 m spacing, race areas + 2 km. |
@@ -69,7 +68,7 @@ The location of `values[r][c]` (its cell center):
 
 ```python
 import json, numpy as np
-d = json.load(open("geo_data/data/la28/json/bathymetry.json"))   # path from the repo root
+d = json.load(open("data/geo/la28/json/bathymetry.json"))   # path from the repo root
 g, z = d["grid"], np.array(d["values"], dtype=float)          # z[r, c] in metres, NaN where null
 def value_at(lat, lon):
     return z[int((g["north"] - lat) / g["step_deg"]), int((lon - g["west"]) / g["step_deg"])]
@@ -82,20 +81,11 @@ print(value_at(33.748, -118.140))                              # -6.8 (Belmont S
 - Both use plain lat/lon (EPSG:4326), so wind, current and weather data from the other teams can be looked up at the same points.
 
 ## Setup and run
-All commands run from inside this folder (Windows shown; on macOS/Linux use `python3 -m venv .venv` and `.venv/bin/python`):
+All commands run from the repo root with `src` on the Python path. The geodata packages (rasterio and others) are not part of the main environment, so give them to `uv run`:
 ```bash
-cd geo_data
+PYTHONPATH=src uv run --with-requirements src/backend/geodata/requirements.txt python -m backend.geodata.run --venue la28
 ```
-```bash
-py -m venv .venv
-```
-```bash
-.venv\Scripts\python -m pip install -r requirements.txt
-```
-```bash
-.venv\Scripts\python -m geodata.run --venue la28
-```
-- With the data already in `data/la28/`, this runs offline in about 2 seconds.
+- With the data already in `data/geo/la28/`, this runs offline in about 2 seconds.
 - Use `--force` to re-fetch from the APIs. NOAA's server can take 1–5 minutes.
-- If you change an area in `venues.yaml`, the next run re-fetches automatically.
+- If you change an area in `data/geo/venues.yaml`, the next run re-fetches automatically.
 - Add a venue with the short form (`lat`, `lon`, `race_radius_km`). Outside the US the global bathymetry fallback is used (tested on Cádiz: ETOPO + EMODnet in ~3 s).

@@ -49,7 +49,7 @@ def test_every_reader_takes_its_folder_from_paths():
 def test_layout_is_data_src_docs_at_the_top():
     """Python lives in src/{backend,frontend}; data in data/; documentation in docs/."""
     assert paths.SRC == paths.ROOT / "src"
-    for stray in ("backend", "frontend", "tests", "sailsync_api_results", "rag-system", "sea_dashboard"):
+    for stray in ("backend", "frontend", "tests", "geo_data", "sailsync_api_results", "rag-system", "sea_dashboard"):
         assert not (paths.ROOT / stray).exists(), f"{stray}/ should not be at the repo root"
 
 

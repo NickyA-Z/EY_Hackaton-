@@ -1,8 +1,11 @@
-# LA28 Location Agent dashboard
+# LA28 Location Agent dashboard (older fork, `src/frontend/sea_dashboard/`)
+
+> This is a divergent, older copy of the dashboard, kept as found. The maintained app is described in
+> [frontend.md](frontend.md) and lives in `src/frontend/`.
 
 Top row: the coach's race-prep flow — **Coach file → Venue map → Venue rules →
-Coach brief → Sailor brief → Strategy overview → Live** (`frontend/agent_views.py`,
-logic in `../backend`, see `../backend/README.md`). Second row: the marine-data
+Coach brief → Sailor brief → Strategy overview → Live** (`src/frontend/sea_dashboard/frontend/agent_views.py`,
+logic in `src/backend`, see [backend.md](backend.md)). Second row: the marine-data
 views below (Map layer, Point chart, Geolocation). Picking a venue in Coach file
 sets the shared latitude/longitude.
 
@@ -22,7 +25,7 @@ Click the map to inspect the local value and, when available, direction.
 From the project root:
 
 ```bash
-./sea_dashboard/run_local.sh
+./src/frontend/sea_dashboard/run_local.sh
 ```
 
 Then open <http://127.0.0.1:8502>.
@@ -31,14 +34,14 @@ The launcher uses `uv` to create an isolated environment and install the
 packages from `requirements.txt`. To use an alternative port:
 
 ```bash
-PORT=8503 ./sea_dashboard/run_local.sh
+PORT=8503 ./src/frontend/sea_dashboard/run_local.sh
 ```
 
 ## Manual start
 
 ```bash
-cd sea_dashboard
-PYTHONPATH=.. uv run --python 3.12 --with-requirements requirements.txt \
+cd src/frontend/sea_dashboard
+PYTHONPATH=../.. uv run --python 3.12 --with-requirements requirements.txt \
   streamlit run frontend/dashboard.py
 ```
 
@@ -59,7 +62,7 @@ The three header buttons switch between independent views while preserving the
 latest loaded results. In the map view, changing the layer or historical date
 reloads an existing map for that selection. **Current · Nov 3** resets the map
 to the latest available date. Geolocation options are read only from
-`geo_data/data/la28/json`.
+`data/geo/la28/json`.
 
 ## Regional map layers
 
@@ -95,14 +98,14 @@ navigation.
 
 | File | Responsibility |
 | --- | --- |
-| `frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
-| `frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
-| `frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
-| `../backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
-| `../backend/retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
-| `../backend/retrieval/geolocation.py` | Approved LA28 terrain and bathymetry JSON loading |
-| `run_local.sh` | Reproducible local launcher and dependency environment |
+| `src/frontend/sea_dashboard/frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
+| `src/frontend/sea_dashboard/frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
+| `src/frontend/sea_dashboard/frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
+| `src/backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
+| `src/backend/retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
+| `src/backend/retrieval/geolocation.py` | Approved LA28 terrain and bathymetry JSON loading |
+| `src/frontend/sea_dashboard/run_local.sh` | Reproducible local launcher and dependency environment |
 
 The existing Location Agent layout remains the main interface. UI code is in
-`frontend/`; marine calculations and data retrieval are grouped with the
-existing root-level `backend/` package.
+`src/frontend/sea_dashboard/frontend/`; marine calculations and data retrieval are grouped with the
+`src/backend/` package.
