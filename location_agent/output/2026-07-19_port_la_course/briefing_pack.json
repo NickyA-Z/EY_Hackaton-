@@ -1,0 +1,582 @@
+{
+ "pack_version": 2,
+ "created": "2026-11-06 11:06",
+ "context": {
+  "venue": "LA28 sailing - Port of LA boat course (outside San Pedro breakwater)",
+  "race_day": "2026-07-19",
+  "race_window_local": "13:00-17:00",
+  "boat_class": "ILCA 7",
+  "mode": "backtest: only information available on the race-day morning",
+  "fingerprint": "74e986bbdcbd",
+  "climatology_years": [
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "race_day_wind_source": "HRRR forecast issued ~24 h before the race day (Open-Meteo previous runs, hourly)",
+  "settings": {
+   "race_window_local": [
+    13,
+    17
+   ],
+   "morning_cutoff_hour": 11,
+   "veer_window_local": [
+    12,
+    17
+   ],
+   "climatology_hours_local": [
+    10,
+    18
+   ],
+   "sea_breeze_onset": {
+    "min_speed_kn": 8,
+    "sector_from_deg": [
+     225,
+     295
+    ],
+    "min_duration_h": 1
+   },
+   "land_sea_dT_inland_hour": 14,
+   "lanes": {
+    "offset_m": 300,
+    "points": 9,
+    "from_fraction": 0.1,
+    "to_fraction": 0.9
+   },
+   "land_definition": {
+    "bathymetry_land_m": 0,
+    "terrain_land_m": 1,
+    "terrain_obstacle_m": 2
+   },
+   "upwind_terrain_scan": {
+    "length_m": 12000,
+    "step_m": 30
+   },
+   "shelter_table_dirs_deg": {
+    "from": 230,
+    "to": 340,
+    "step": 10
+   },
+   "shoreline_radius_m": 3000,
+   "start_line_sensitivity_deg": 5,
+   "boat_class_priors": {
+    "class": "ILCA 7",
+    "tack_angle_deg": 90,
+    "upwind_vmg_kn": 3.4
+   },
+   "morning_cloud_hours_local": [
+    9,
+    12
+   ],
+   "cloud_clear_pct": 30
+  },
+  "conventions": "speeds kn; wind/wave directions = degrees FROM; current direction = degrees TOWARDS; local time PDT; left/right = as seen by a sailor looking toward the windward mark; depth m (negative = below NAVD88); venue_percentiles = % of July climatology days with a value <= the race-day value",
+  "course": {
+   "source": "course file 2026-07-19.json, race 1 (start line + windward mark 1): derived from 44 SailSync GPS tracks (session 2796): mark positions = median of clean roundings, start line = fleet at the official gun. Replace with official course data when available.",
+   "start_line_ends": [
+    [
+     33.68747,
+     -118.26861
+    ],
+    [
+     33.69047,
+     -118.26842
+    ]
+   ],
+   "start_line_centre": [
+    33.68897,
+    -118.26852
+   ],
+   "start_line_length_m": 332,
+   "start_line_bearing_deg": 3,
+   "windward_mark": [
+    33.68928,
+    -118.2832
+   ],
+   "rhumb_bearing_deg": 271,
+   "beat_length_m": 1361
+  }
+ },
+ "building_blocks": {
+  "1_oscillating_shifts": {
+   "evidence": {
+    "race_day": {
+     "swing_sd_deg_around_trend": 2.3,
+     "swing_period_min": null
+    },
+    "july_climatology": {
+     "swing_sd_deg_median": 1.6,
+     "swing_sd_deg_p25_p75": [
+      1.0,
+      2.5
+     ],
+     "swing_period_min_median": null
+    },
+    "station_angels_gate_hourly_swing_sd_deg_median": 3.7,
+    "window_local": "13:00-17:00"
+   },
+   "venue_percentiles": {
+    "race_day_swing_sd": 72
+   },
+   "data_sources": [
+    "HRRR 15-min direction at the course",
+    "CO-OPS Angels Gate hourly direction (measured)"
+   ],
+   "data_quality": "HRRR (3 km, 15 min) smooths short swings: SD and period describe slow swings only (periods >= ~30 min)."
+  },
+  "2_persistent_shift": {
+   "evidence": {
+    "race_day": {
+     "veer_deg_per_h_12_17": 2.6,
+     "veer_deg_per_h_race_window": 1.5,
+     "dir_deg_window_start": 257.0,
+     "dir_deg_window_end": 261.0,
+     "total_turn_deg_over_window": 4.0
+    },
+    "july_climatology_hrrr": {
+     "veer_deg_per_h_12_17_median": 2.6,
+     "veer_p25_p75": [
+      1.0,
+      7.6
+     ],
+     "pct_days_veering": 91.0,
+     "mean_dir_deg_by_hour": {
+      "10": 223.0,
+      "11": 235.0,
+      "12": 244.0,
+      "13": 252.0,
+      "14": 256.0,
+      "15": 260.0,
+      "16": 262.0,
+      "17": 262.0,
+      "18": 262.0
+     }
+    },
+    "july_climatology_angels_gate_measured": {
+     "veer_deg_per_h_12_17_median": 7.2,
+     "pct_days_veering": 92.0,
+     "n_days": 85
+    },
+    "sign_convention": "positive = clockwise = veer = right shift"
+   },
+   "venue_percentiles": {
+    "race_day_veer_12_17": 50
+   },
+   "data_sources": [
+    "HRRR course (15 min)",
+    "CO-OPS Angels Gate (hourly, measured)"
+   ],
+   "data_quality": "Model and station agree on the sign of the trend; station direction itself is biased ~25-40 deg left."
+  },
+  "3_geographic_shift_wind_bend": {
+   "evidence": {
+    "dir_difference_course_minus_site_race_hours_july": {
+     "angels_gate_measured": {
+      "median_deg": 23.0,
+      "n_hours": 440
+     },
+     "belmont_inshore_model": {
+      "median_deg": 32.0,
+      "n_hours": 620
+     },
+     "offshore_buoy_46025_measured": {
+      "median_deg": -6.0,
+      "n_hours": 619
+     }
+    },
+    "race_day_dir_difference_course_minus_belmont_deg": 26.0,
+    "shoreline_near_course": {
+     "nearest_land_bearing_deg": 20,
+     "nearest_land_distance_m": 1741,
+     "land_within_3km_main_axis_bearing_deg": 93
+    },
+    "distance_to_land_by_side_m": {
+     "left": 2025.0,
+     "right": 1465.0
+    },
+    "sign_convention": "difference > 0 = wind at the course is veered (more from the right) relative to that site"
+   },
+   "venue_percentiles": {},
+   "data_sources": [
+    "HRRR course + Belmont",
+    "CO-OPS Angels Gate (measured)",
+    "NDBC 46025 offshore (measured)",
+    "NCEI bathymetry land mask"
+   ],
+   "data_quality": "Differences mix model and measured sites; Angels Gate sits in the breakwater entrance (local channelling)."
+  },
+  "4_pressure": {
+   "evidence": {
+    "race_day": {
+     "race_window_speed_kn_mean": 16.3,
+     "race_window_speed_kn_min_max": [
+      14.4,
+      17.9
+     ],
+     "gust_minus_mean_kn": 1.1,
+     "by_local_hour": {
+      "10": {
+       "speed_kn": 4.6,
+       "anomaly_vs_july_median_kn": -1.9
+      },
+      "11": {
+       "speed_kn": 7.1,
+       "anomaly_vs_july_median_kn": -1.3
+      },
+      "12": {
+       "speed_kn": 11.1,
+       "anomaly_vs_july_median_kn": 0.2
+      },
+      "13": {
+       "speed_kn": 14.4,
+       "anomaly_vs_july_median_kn": 1.9
+      },
+      "14": {
+       "speed_kn": 17.2,
+       "anomaly_vs_july_median_kn": 3.0
+      },
+      "15": {
+       "speed_kn": 17.9,
+       "anomaly_vs_july_median_kn": 2.6
+      },
+      "16": {
+       "speed_kn": 15.8,
+       "anomaly_vs_july_median_kn": 0.4
+      },
+      "17": {
+       "speed_kn": 14.0,
+       "anomaly_vs_july_median_kn": -0.3
+      },
+      "18": {
+       "speed_kn": 12.5,
+       "anomaly_vs_july_median_kn": -0.3
+      }
+     }
+    },
+    "july_median_speed_kn_race_window_by_site": {
+     "port_la_course_model": 14.5,
+     "belmont_inshore_model": 11.1,
+     "angels_gate_breakwater_measured": 12.2,
+     "pier_400_inside_harbour_measured": 6.8,
+     "offshore_buoy_46025_measured": 6.8
+    },
+    "july_climatology_race_window_speed_kn": {
+     "median": 14.0,
+     "p10_p90": [
+      9.8,
+      16.9
+     ]
+    },
+    "july_gust_minus_mean_kn_median": 0.6
+   },
+   "venue_percentiles": {
+    "race_day_window_speed": 79,
+    "race_day_gustiness": 87
+   },
+   "data_sources": [
+    "HRRR course + Belmont",
+    "CO-OPS Angels Gate, Pier 400 (measured)",
+    "NDBC 46025 (measured)"
+   ],
+   "data_quality": "HRRR (3 km) cannot resolve left-vs-right pressure within a 1.2 km beat; site comparisons are inside/outside the breakwater scale."
+  },
+  "5_sea_breeze": {
+   "evidence": {
+    "race_day": {
+     "onset_local": "12:00",
+     "peak_kn": 17.9,
+     "inland_temp_14_degC": 30.1,
+     "sea_temp_used_degC": 20.1,
+     "land_sea_dT_degC": 10.0,
+     "measured_morning_angels_gate": {
+      "08": {
+       "speed_kn": 2.5,
+       "vs_station_july_median_kn": -1.4
+      },
+      "09": {
+       "speed_kn": 4.5,
+       "vs_station_july_median_kn": 0.2
+      },
+      "10": {
+       "speed_kn": 5.1,
+       "vs_station_july_median_kn": -0.2
+      },
+      "11": {
+       "speed_kn": 8.0,
+       "vs_station_july_median_kn": 0.9
+      }
+     }
+    },
+    "july_climatology": {
+     "onset_local_median": "11:00",
+     "onset_p25_p75": [
+      "10:00",
+      "12:00"
+     ],
+     "pct_days_without_sea_breeze": 3.0,
+     "peak_speed_kn_median": 16.0,
+     "peak_time_local_median": "15:00",
+     "land_sea_dT_degC_median": 8.5,
+     "corr_dT_vs_race_window_speed": 0.62,
+     "race_window_kn_per_degC_dT": 0.71
+    },
+    "onset_definition": ">= 8 kn from 225-295 deg for 1 h",
+    "morning_cloud": {
+     "race_day": {
+      "morning_cloud_pct_inland": 14.0,
+      "morning_cloud_pct_course": 22.0,
+      "cloud_clears_local_inland": "09:00",
+      "cloud_clears_local_course": "10:00"
+     },
+     "july_climatology_inland": {
+      "morning_cloud_pct_median": 37.0,
+      "morning_cloud_pct_p25_p75": [
+       16.0,
+       70.0
+      ],
+      "cloud_clears_local_median": "10:00",
+      "cloud_clears_p25_p75": [
+       "09:00",
+       "11:00"
+      ],
+      "pct_days_cloud_never_clears_07_19": 3.0,
+      "corr_morning_cloud_vs_onset_hour": 0.36,
+      "onset_hours_per_10pct_cloud": 0.21,
+      "corr_morning_cloud_vs_race_window_speed": -0.44,
+      "race_window_kn_per_10pct_cloud": -0.42
+     },
+     "definition": "total cloud cover %, mean 09:00-12:00; 'clears' = first hour from 07:00 with cloud < 30 %"
+    }
+   },
+   "venue_percentiles": {
+    "race_day_dT": 71,
+    "race_day_onset_time": 77,
+    "race_day_peak_speed": 86,
+    "race_day_morning_cloud_inland": 21,
+    "race_day_cloud_clears_inland": 36
+   },
+   "data_sources": [
+    "HRRR inland Lakewood temperature + course wind",
+    "NDBC 46222 sea temperature",
+    "CO-OPS Angels Gate morning wind (measured, to cutoff)",
+    "HRRR total cloud cover (race day: same source as the race-day wind)"
+   ],
+   "data_quality": "Race-day sea temperature not in repo: July buoy median used. Morning station data cut at 11:00 (backtest)."
+  },
+  "6_current_tide": {
+   "evidence": {
+    "tide_race_day_local": [
+     "high 01:02 1.42 m",
+     "low 07:35 0.17 m",
+     "high 14:21 1.49 m",
+     "low 20:36 0.56 m"
+    ],
+    "tide_height_m_at_window_start_end": [
+     1.37,
+     1.12
+    ],
+    "tide_turns_inside_race_window": [
+     "high 14:21"
+    ],
+    "tide_range_m_race_day": 1.31,
+    "current_model_race_window": {
+     "speed_kn_mean": 0.26,
+     "speed_kn_max": 0.32,
+     "flowing_towards_deg": 138.0,
+     "model_cell": [
+      33.70834,
+      -118.29166
+     ]
+    },
+    "current_july_race_window_speed_kn_median": 0.4,
+    "depth_m_navd88_median_by_side": {
+     "left": -33.6,
+     "right": -29.1
+    }
+   },
+   "venue_percentiles": {
+    "race_day_current_speed": 24
+   },
+   "data_sources": [
+    "CO-OPS 9410660 Los Angeles tide predictions (MLLW)",
+    "Open-Meteo marine surface current (model)",
+    "NCEI bathymetry"
+   ],
+   "data_quality": "Current is a coarse model (several km), nearest cell ~2.5 km from the course: background drift only, cannot resolve left vs right. Tide heights are exact predictions."
+  },
+  "7_terrain_effects": {
+   "evidence": {
+    "wind_dir_used_deg": 261.0,
+    "upwind_scan_by_side_for_race_day_wind": {
+     "left": {
+      "over_water_fetch_m": ">12000",
+      "max_obstacle_height_m": 0,
+      "max_obstacle_distance_m": null,
+      "shelter_index_height_over_distance": 0.0
+     },
+     "right": {
+      "over_water_fetch_m": ">12000",
+      "max_obstacle_height_m": 0,
+      "max_obstacle_distance_m": null,
+      "shelter_index_height_over_distance": 0.0
+     }
+    },
+    "shelter_index_by_wind_dir_deg": {
+     "230": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "240": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "250": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "260": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "270": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "280": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "290": {
+      "left": 0.0,
+      "right": 0.0
+     },
+     "300": {
+      "left": 0.0011,
+      "right": 0.0068
+     },
+     "310": {
+      "left": 0.0214,
+      "right": 0.0387
+     },
+     "320": {
+      "left": 0.0525,
+      "right": 0.0478
+     },
+     "330": {
+      "left": 0.0281,
+      "right": 0.0231
+     },
+     "340": {
+      "left": 0.0123,
+      "right": 0.0107
+     }
+    },
+    "highest_terrain": {
+     "name": "Palos Verdes Hills",
+     "height_m": 456.0,
+     "bearing_from_start_deg": 315,
+     "distance_km": 8.9
+    },
+    "shelter_index_definition": "max over the upwind path of terrain height / distance (scan 12 km, 30 m steps)"
+   },
+   "venue_percentiles": {},
+   "data_sources": [
+    "Copernicus GLO-30 terrain (30 m, includes buildings)",
+    "NCEI bathymetry"
+   ],
+   "data_quality": "Terrain raster extends ~10 km west of the course; obstacles further away (e.g. Santa Catalina, ~35 km) are not scanned."
+  },
+  "8_start_line_bias": {
+   "evidence": {
+    "start_line_bearing_deg": 3,
+    "start_line_length_m": 332,
+    "line_perpendicular_up_course_deg": 273,
+    "race_day_dir_deg_first_hour": 257.0,
+    "at_race_day_wind": {
+     "more_upwind_end": "south_end",
+     "upwind_advantage_m": 92.0,
+     "wind_minus_line_perpendicular_deg": -16.0
+    },
+    "if_wind_5deg_left": {
+     "more_upwind_end": "south_end",
+     "upwind_advantage_m": 119.0,
+     "wind_minus_line_perpendicular_deg": -21.0
+    },
+    "if_wind_5deg_right": {
+     "more_upwind_end": "south_end",
+     "upwind_advantage_m": 64.0,
+     "wind_minus_line_perpendicular_deg": -11.0
+    },
+    "race_day_veer_deg_per_h_race_window": 1.5,
+    "left_right_of_ends_looking_upwind": "south end = left, north end = right (course heads west)",
+    "note": "which end is the committee boat vs the pin is not known from the data"
+   },
+   "venue_percentiles": {},
+   "data_sources": [
+    "Start line from the course file (location_agent/course/)",
+    "HRRR race-day wind direction"
+   ],
+   "data_quality": "Line position and bearing come from one 2026 race; the real LA28 line will be set on the day."
+  },
+  "9_laylines": {
+   "evidence": {
+    "beat_length_m": 1361,
+    "rhumb_bearing_deg": 271,
+    "class_priors": {
+     "class": "ILCA 7",
+     "tack_angle_deg": 90,
+     "upwind_vmg_kn": 3.4
+    },
+    "estimated_beat_time_min": 13.0,
+    "expected_wind_turn_over_beat_deg": 0.3,
+    "current_set_over_beat_m": {
+     "total": 103.0,
+     "along_course_towards_mark": -70.0,
+     "across_course_towards_right": -75.0
+    },
+    "layline_angle_to_wind_deg": 45.0
+   },
+   "venue_percentiles": {},
+   "data_sources": [
+    "Course geometry",
+    "HRRR race-day veer",
+    "Open-Meteo current (model)",
+    "ILCA class priors"
+   ],
+   "data_quality": "Class priors are approximate; current set is from a coarse model."
+  }
+ },
+ "coach_questions_to_blocks": {
+  "Q1 which side pays and why": [
+   "2",
+   "3",
+   "4",
+   "6",
+   "7"
+  ],
+  "Q2 oscillating or persistent, and on what cycle": [
+   "1",
+   "2",
+   "5"
+  ],
+  "Q3 which end of the start line": [
+   "8"
+  ],
+  "Q4 what changes if the forecast is wrong": [
+   "5",
+   "4",
+   "2"
+  ]
+ },
+ "prior_knowledge": [
+  "1932 Olympic report: westerly, eight to fifteen knots, from midday (Port of LA outer harbour).",
+  "Long Beach Race Week briefing (June 2026): 10-14 kt WSW-W in the afternoon, peaking 14:00-17:00; inside the harbour 2-5 kt lighter than outside the breakwater."
+ ],
+ "data_caveats": [
+  "Race-day wind: see context.race_day_wind_source (backtest uses the forecast issued ~24 h ahead; climatology uses near-real-time HRRR).",
+  "Climatology: July of the listed years only (wind 6 years max; currents from 2022).",
+  "Course: start line and windward mark positions from the course file (see context.course.source); positions are uncertain by tens of metres."
+ ]
+}

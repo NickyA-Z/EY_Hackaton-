@@ -8,6 +8,8 @@ from backend.venue_time import open_meteo_to_local, open_meteo_to_local_labels
 
 
 MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine"
+# 10 m wind for the map's Wind layer (ERA5 reanalysis, 1940 onwards).
+WEATHER_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
 MARINE_VARIABLES = [
     "ocean_current_velocity",
@@ -81,8 +83,9 @@ def fetch_grid_points(
     variables,
     batch_size,
     velocity_unit=None,
+    url=MARINE_API_URL,
 ):
-    """Retrieve spatial marine points in URL-safe request batches."""
+    """Retrieve spatial points in URL-safe request batches (marine API unless `url` says otherwise)."""
     results = []
     for offset in range(0, len(coordinates), batch_size):
         batch = coordinates[offset:offset + batch_size]
@@ -93,11 +96,12 @@ def fetch_grid_points(
             "end_date": str(selected_date),
             "hourly": ",".join(variables),
             "timezone": "America/Los_Angeles",
-            "cell_selection": "sea",
         }
+        if url == MARINE_API_URL:
+            params["cell_selection"] = "sea"
         if velocity_unit:
             params["wind_speed_unit"] = velocity_unit
-        response = requests.get(MARINE_API_URL, params=params, timeout=60)
+        response = requests.get(url, params=params, timeout=60)
         response.raise_for_status()
         payload = response.json()
         for point in payload if isinstance(payload, list) else [payload]:

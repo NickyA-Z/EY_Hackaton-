@@ -1,13 +1,16 @@
 # LA28 Location Agent dashboard
 
-The compact top navigation groups the coach's race-prep flow into **Coach file**,
-**Venue** (Map and Rules), **Briefs** (Coach and Sailor), **Strategy**, and
-**Live** (`frontend/agent_views.py`, logic in `../backend`, see
-`../backend/README.md`). A second toolbar switches between **Points** and **Location**. The regional
-marine map (same logic as the former Map tool) is shown in **Live**, **Coach brief**
-and **Venue · Map**. **Strategy** has what-if toggles (wind, strength, sea breeze,
-risk appetite) and a scenario × appetite table. Picking a venue in Coach file sets the shared coordinates,
-which can also be edited from the location popover.
+The single-row top navigation holds **Live**, **Venue** (Geoinformation and Rules),
+**Briefs** (Coach and Sailor) and **Strategy** (`frontend/agent_views.py`, logic in
+`../backend`, see `../backend/README.md`). Two icons sit at the right: **upload** opens
+the Coach file page (upload, preview and delete files) and **location** opens the
+venue, class, race-day, time-of-day and coordinate settings. **Venue · Geoinformation** shows the venue map and one **Load** control that
+fetches location geodata, the regional map and the point series together. The regional
+marine map is shown in **Live**, **Coach brief** and **Venue · Geoinformation**; pick
+any combination of marine layers (currents, waves, wind waves, swell, wind) and they
+overlay, each in its own colour. **Strategy** has what-if toggles (wind, strength, sea breeze,
+risk appetite) and a scenario × appetite table. Picking a venue in the location menu sets the shared coordinates,
+which can also be edited there.
 
 
 This Streamlit dashboard runs locally and retrieves historical marine forecast
@@ -47,22 +50,18 @@ PYTHONPATH=. uv run --python 3.12 --with-requirements frontend/requirements.txt 
 
 ## Dashboard controls
 
-1. Open the coordinate popover to review or edit the shared latitude and longitude.
+1. Open the location icon (top right) to set venue, class, race day, time of day and the shared latitude and longitude.
 2. Open **Live** or **Briefs · Coach** for the regional map on the race day (choose
    the marine layer above the map; it opens at the selected hour).
-3. Select **Points** to open the point-data view, choose a date range and
-   variable, then press **Retrieve data**.
-4. Select **Location** to choose an official LA28 sailing area from the
-   local terrain and bathymetry JSON, then press **Use this location** to apply
-   its coordinates to the other views.
-5. Inspect the point summary, table, and time-series chart or download the
+3. In **Venue · Geoinformation**, choose the sailing area, marine layer, point variable
+   and dates, then press **Load** once: location, map and points appear together.
+4. Inspect the point summary, table, and time-series chart or download the
    result as CSV.
 
-The data-tool segments switch between independent views while preserving the
-latest loaded results. In the map view, changing the layer or historical date
-reloads an existing map for that selection. **Current · Nov 3** resets the map
-to the latest available date. Geolocation options are read only from
-`geo_data/data/la28/json`.
+**Load** also applies the sailing area's coordinates to the shared location, so
+Live and Coach brief use the same spot. Results stay until the next **Load**;
+the "Loaded: …" line shows which selection they belong to. Sailing areas are read
+only from the local geodata JSON.
 
 ## Regional map layers
 
