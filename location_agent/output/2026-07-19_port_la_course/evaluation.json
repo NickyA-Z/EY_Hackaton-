@@ -1,0 +1,333 @@
+{
+ "date": "2026-07-19",
+ "area": "port_la_course",
+ "strategy_file": "strategy_mock_mock.json",
+ "model": "mock",
+ "created": "2026-11-06 09:18",
+ "races": [
+  {
+   "race": 1,
+   "role": "tuning",
+   "gun_local": "14:15",
+   "course": {
+    "rhumb_deg": 271.0,
+    "mark_1_method": "clean roundings",
+    "mark_1_uncertainty_m": 38
+   },
+   "real_fleet": {
+    "boats_ranked": 43,
+    "ranked_at_s_after_gun": 579,
+    "ranking_vs_real_rounding_order_spearman": 0.86,
+    "boats_with_real_rounding": 32,
+    "leaders_minus_rest_lateral_m": -34.0,
+    "spearman_distance_vs_lateral": 0.31,
+    "leaders_minus_rest_line_position": -0.15,
+    "spearman_distance_vs_line_position": 0.39,
+    "side_paid": "middle",
+    "end_paid": "left",
+    "leaders": [
+     "Rasmus Granzin (SWE)",
+     "Matt Wearn (AUS)",
+     "Lawson McAullay (AUS)",
+     "Dimitri Peroni (ITA)",
+     "Willem Wiersema (NED)"
+    ],
+    "shift_pattern": {
+     "trend_deg_per_h": 7.0,
+     "swing_sd_deg": 18.7,
+     "turn_over_race_deg": 5.3,
+     "label": "oscillating",
+     "rule": "persistent if turn over 45 min >= 2x swing SD; 'with trend' if >= 1x"
+    }
+   },
+   "strategy": {
+    "q1_side": "right",
+    "q1_confidence": "low",
+    "q2_pattern": "unclear",
+    "q3_end": "left",
+    "plan_target_side": "right",
+    "plan_line_position": 0.2
+   },
+   "match": {
+    "side": false,
+    "start_end": true,
+    "shift_pattern": false,
+    "plan_side": false
+   },
+   "simulator": {
+    "agent": {
+     "time_to_mark_s": 738.0,
+     "tacks": 3,
+     "mean_lateral_m": -3,
+     "pct_time_right": 47,
+     "rank_among_ghosts": 17,
+     "of": 45
+    },
+    "gap_to_best_ghost_s": 34.0,
+    "gap_to_median_ghost_s": -4.0,
+    "winners": [
+     {
+      "boat": "Lorenzo Brando Chiavarini (ITA)",
+      "sim_time_s": 726.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": 12.0,
+      "line_position": 0.436,
+      "mean_lateral_m": 239
+     },
+     {
+      "boat": "Duko Bos (NED)",
+      "sim_time_s": 710.0,
+      "real_time_s": 709.0,
+      "gap_agent_minus_winner_s": 28.0,
+      "line_position": 0.025,
+      "mean_lateral_m": -140
+     },
+     {
+      "boat": "Elliot Hanson (GBR)",
+      "sim_time_s": 716.0,
+      "real_time_s": 719.0,
+      "gap_agent_minus_winner_s": 22.0,
+      "line_position": 0.49,
+      "mean_lateral_m": 53
+     },
+     {
+      "boat": "Matt Wearn (AUS)",
+      "sim_time_s": 728.0,
+      "real_time_s": 679.0,
+      "gap_agent_minus_winner_s": 10.0,
+      "line_position": 0.938,
+      "mean_lateral_m": 349
+     }
+    ],
+    "boat_model": {
+     "upwind_kn": 4.87,
+     "tack_angle_deg": 84.0,
+     "tack_loss_s": 6
+    },
+    "calibration": {
+     "boats_with_real_time": 32,
+     "median_abs_error_pct": 2.9,
+     "median_error_pct": 2.9,
+     "times_comparable": true
+    }
+   },
+   "lost_to_a_winner_in_sim": true
+  },
+  {
+   "race": 2,
+   "role": "check",
+   "gun_local": "15:24",
+   "course": {
+    "rhumb_deg": 278.0,
+    "mark_1_method": "leading quarter of first-beat tops (tracker gaps at the mark)",
+    "mark_1_uncertainty_m": 138
+   },
+   "real_fleet": {
+    "boats_ranked": 33,
+    "ranked_at_s_after_gun": 639,
+    "ranking_vs_real_rounding_order_spearman": 0.89,
+    "boats_with_real_rounding": 6,
+    "leaders_minus_rest_lateral_m": -103.0,
+    "spearman_distance_vs_lateral": 0.11,
+    "leaders_minus_rest_line_position": -0.22,
+    "spearman_distance_vs_line_position": 0.19,
+    "side_paid": "left",
+    "end_paid": "left",
+    "leaders": [
+     "Elliot Hanson (GBR)",
+     "Jeemin HA (KOR)",
+     "Pavlos Kontides (CYP)",
+     "Willem Wiersema (NED)",
+     "Dimitri Peroni (ITA)"
+    ],
+    "shift_pattern": {
+     "trend_deg_per_h": 19.3,
+     "swing_sd_deg": 6.3,
+     "turn_over_race_deg": 14.5,
+     "label": "persistent_right",
+     "rule": "persistent if turn over 45 min >= 2x swing SD; 'with trend' if >= 1x"
+    }
+   },
+   "strategy": {
+    "q1_side": "right",
+    "q1_confidence": "low",
+    "q2_pattern": "unclear",
+    "q3_end": "left",
+    "plan_target_side": "right",
+    "plan_line_position": 0.2
+   },
+   "match": {
+    "side": false,
+    "start_end": true,
+    "shift_pattern": false,
+    "plan_side": false
+   },
+   "simulator": {
+    "agent": {
+     "time_to_mark_s": 726.0,
+     "tacks": 3,
+     "mean_lateral_m": 0,
+     "pct_time_right": 49,
+     "rank_among_ghosts": 2,
+     "of": 45
+    },
+    "gap_to_best_ghost_s": 6.0,
+    "gap_to_median_ghost_s": -27.0,
+    "winners": [
+     {
+      "boat": "Lorenzo Brando Chiavarini (ITA)",
+      "sim_time_s": 742.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": -16.0,
+      "line_position": 0.351,
+      "mean_lateral_m": -51
+     },
+     {
+      "boat": "Duko Bos (NED)",
+      "sim_time_s": 734.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": -8.0,
+      "line_position": -0.036,
+      "mean_lateral_m": -415
+     },
+     {
+      "boat": "Elliot Hanson (GBR)",
+      "sim_time_s": 744.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": -18.0,
+      "line_position": 0.537,
+      "mean_lateral_m": -70
+     },
+     {
+      "boat": "Matt Wearn (AUS)",
+      "sim_time_s": 752.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": -26.0,
+      "line_position": 0.704,
+      "mean_lateral_m": 127
+     }
+    ],
+    "boat_model": {
+     "upwind_kn": 4.82,
+     "tack_angle_deg": 84.0,
+     "tack_loss_s": 6
+    },
+    "calibration": {
+     "boats_with_real_time": 7,
+     "median_abs_error_pct": 3.3,
+     "median_error_pct": 1.6,
+     "times_comparable": true
+    }
+   },
+   "lost_to_a_winner_in_sim": false
+  },
+  {
+   "race": 3,
+   "role": "check",
+   "gun_local": "16:30",
+   "course": {
+    "rhumb_deg": 286.0,
+    "mark_1_method": "leading quarter of first-beat tops (tracker gaps at the mark)",
+    "mark_1_uncertainty_m": 103
+   },
+   "real_fleet": {
+    "boats_ranked": 27,
+    "ranked_at_s_after_gun": 559,
+    "ranking_vs_real_rounding_order_spearman": null,
+    "boats_with_real_rounding": 5,
+    "leaders_minus_rest_lateral_m": 101.0,
+    "spearman_distance_vs_lateral": -0.26,
+    "leaders_minus_rest_line_position": 0.03,
+    "spearman_distance_vs_line_position": -0.19,
+    "side_paid": "right",
+    "end_paid": "middle",
+    "leaders": [
+     "Pavlos Kontides (CYP)",
+     "Finn Lynch (IRL)",
+     "Dimitri Peroni (ITA)",
+     "Zac Littlewood (AUS)",
+     "Elliot Hanson (GBR)"
+    ],
+    "shift_pattern": {
+     "trend_deg_per_h": 15.0,
+     "swing_sd_deg": 4.1,
+     "turn_over_race_deg": 11.2,
+     "label": "persistent_right",
+     "rule": "persistent if turn over 45 min >= 2x swing SD; 'with trend' if >= 1x"
+    }
+   },
+   "strategy": {
+    "q1_side": "right",
+    "q1_confidence": "low",
+    "q2_pattern": "unclear",
+    "q3_end": "left",
+    "plan_target_side": "right",
+    "plan_line_position": 0.2
+   },
+   "match": {
+    "side": true,
+    "start_end": false,
+    "shift_pattern": false,
+    "plan_side": true
+   },
+   "simulator": {
+    "agent": {
+     "time_to_mark_s": 690.0,
+     "tacks": 2,
+     "mean_lateral_m": -56,
+     "pct_time_right": 41,
+     "rank_among_ghosts": 21,
+     "of": 45
+    },
+    "gap_to_best_ghost_s": 24.0,
+    "gap_to_median_ghost_s": -4.0,
+    "winners": [
+     {
+      "boat": "Lorenzo Brando Chiavarini (ITA)",
+      "sim_time_s": 670.0,
+      "real_time_s": 639.0,
+      "gap_agent_minus_winner_s": 20.0,
+      "line_position": 0.485,
+      "mean_lateral_m": -32
+     },
+     {
+      "boat": "Duko Bos (NED)",
+      "sim_time_s": 696.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": -6.0,
+      "line_position": 0.981,
+      "mean_lateral_m": 300
+     },
+     {
+      "boat": "Elliot Hanson (GBR)",
+      "sim_time_s": 676.0,
+      "real_time_s": 639.0,
+      "gap_agent_minus_winner_s": 14.0,
+      "line_position": 0.458,
+      "mean_lateral_m": -43
+     },
+     {
+      "boat": "Matt Wearn (AUS)",
+      "sim_time_s": 684.0,
+      "real_time_s": null,
+      "gap_agent_minus_winner_s": 6.0,
+      "line_position": 0.412,
+      "mean_lateral_m": -105
+     }
+    ],
+    "boat_model": {
+     "upwind_kn": 4.74,
+     "tack_angle_deg": 85.0,
+     "tack_loss_s": 6
+    },
+    "calibration": {
+     "boats_with_real_time": 7,
+     "median_abs_error_pct": 4.9,
+     "median_error_pct": 4.9,
+     "times_comparable": true
+    }
+   },
+   "lost_to_a_winner_in_sim": true
+  }
+ ]
+}
