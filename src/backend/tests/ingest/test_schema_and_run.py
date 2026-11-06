@@ -31,7 +31,7 @@ def test_validate_reports_problems():
 
 @pytest.fixture
 def raw_dir(tmp_path, fixtures):
-    """A miniature data/raw tree built from the fixtures."""
+    """A miniature data/weather/raw tree built from the fixtures."""
     layout = {
         "metar/LGB_202606.csv": "metar_LGB.csv",
         "noaa_coops/9410670_wind_202106.csv": "coops_9410670_wind_202106.csv",

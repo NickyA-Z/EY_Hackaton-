@@ -1,7 +1,7 @@
 """Location Agent - file inbox (Streamlit).
 
 Drop any file in; the app proposes what it is and where it belongs, you confirm,
-then it is filed under data/raw and the common tables are rebuilt.
+then it is filed under data/weather/raw and the common tables are rebuilt.
 
 Run from the repo root:
     PYTHONPATH=src .venv/bin/streamlit run src/frontend/inbox_app.py
@@ -17,6 +17,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from backend import paths                                               # noqa: E402
 from backend.ingest import inbox, run                                   # noqa: E402
 from backend.ingest.classify import Proposal, classify                  # noqa: E402
 from backend.ingest.config import RAW_DIR, REQUESTED_MONTHS             # noqa: E402
@@ -59,7 +60,7 @@ with st.sidebar:
 
 st.title("📥 File inbox")
 st.write("Add data in any format. The app proposes a category and a place under "
-         "`data/raw`; nothing is stored until you confirm.")
+         "`data/weather/raw`; nothing is stored until you confirm.")
 
 for kind, msg in state.flash:
     getattr(st, kind)(msg)
@@ -76,7 +77,7 @@ if uploads:
             state.flash.append(("error", str(e)))
     state.uploader_key += 1          # clear the widget so files aren't added twice
     st.rerun()
-st.caption(f"You can also copy files into `{inbox.INBOX_DIR.relative_to(RAW_DIR.parent.parent)}` "
+st.caption(f"You can also copy files into `{inbox.INBOX_DIR.relative_to(paths.ROOT)}` "
            "and press **Refresh**.")
 st.button("Refresh")
 
@@ -124,7 +125,7 @@ for path in files:
                           period=period.strip() or None, extra={"product": product})
         try:
             dest = inbox.target_path(path, edited)
-            st.markdown(f"**Will be stored as:** `{dest.relative_to(RAW_DIR.parent.parent)}`")
+            st.markdown(f"**Will be stored as:** `{dest.relative_to(paths.ROOT)}`")
             ready = True
         except inbox.InboxError as e:
             st.error(str(e))

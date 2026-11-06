@@ -6,7 +6,7 @@ Demo story: "today" is June 2026.
   - June 2026            -> replayed as if live
   - June 2021–2025       -> history for the statistics / playbook
 
-Downloads 4 public data sources in their *native* formats into data/raw/,
+Downloads 4 public data sources in their *native* formats into data/weather/raw/,
 so the ingest layer can later show "any format -> one data model".
 
   1. Airport METAR (raw text)   – Iowa Environmental Mesonet, station LGB

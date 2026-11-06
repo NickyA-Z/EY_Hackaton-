@@ -15,7 +15,7 @@ from backend.retrieval import geolocation
 # Folder names that no longer exist (or exist only as locations inside paths.py). If one shows up in
 # code outside paths.py, somebody built a data path by hand.
 RETIRED_NAMES = ("rag-system", "sailsync_api_results", "geo_data", "conditions_June_2026", "weather_meteo_com",
-                 "ey_hackathon", "sea_dashboard.frontend", "frontend.frontend")
+                 "ey_hackathon", "sea_dashboard.frontend", "frontend.frontend", "data/raw", "data/processed", "data/inbox")
 
 
 def test_every_data_folder_exists_and_has_files():

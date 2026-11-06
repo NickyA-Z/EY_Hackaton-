@@ -33,7 +33,7 @@ dependencies = [
 
 [tool.uv]
 # This repo is an app, not an installable package: `uv sync` installs the
-# dependencies only (without this it fails looking for src/ey_hackathon/).
+# dependencies only (without this it fails looking for src/backend/).
 package = false
 
 [build-system]

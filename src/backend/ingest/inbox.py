@@ -1,8 +1,8 @@
-"""Inbox: quarantine incoming files, preview them, and file them under data/raw.
+"""Inbox: quarantine incoming files, preview them, and file them under data/weather/raw.
 
 Flow:  receive() -> classify.classify() -> preview() -> [user confirms] -> confirm()
-Nothing in data/raw is ever overwritten. Every confirmed file is recorded in
-data/raw/manifest.json (hash, category, is_sample, time), which run.py reads.
+Nothing in data/weather/raw is ever overwritten. Every confirmed file is recorded in
+data/weather/raw/manifest.json (hash, category, is_sample, time), which run.py reads.
 """
 from __future__ import annotations
 
@@ -163,7 +163,7 @@ def preview(src: Path, proposal: Proposal, months=REQUESTED_MONTHS) -> Optional[
 
 def confirm(src: Path, proposal: Proposal, is_sample: bool = False,
             raw_dir: Path = RAW_DIR) -> Path:
-    """Move an inbox file to its place under data/raw and record it in the manifest."""
+    """Move an inbox file to its place under data/weather/raw and record it in the manifest."""
     digest = sha256(src)
     dup = find_duplicate(src, digest, raw_dir)
     if dup:

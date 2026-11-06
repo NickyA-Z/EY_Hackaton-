@@ -23,10 +23,10 @@ Sniffer = Callable[[str, Optional[str]], float]
 
 @dataclass(frozen=True)
 class Category:
-    """A kind of file the inbox can recognise and where it is stored under data/raw."""
+    """A kind of file the inbox can recognise and where it is stored under data/weather/raw."""
     key: str                       # stable id, also the classifier's label
     description: str               # shown to the user and to the LLM classifier
-    subdir: str                    # folder under data/raw
+    subdir: str                    # folder under data/weather/raw
     sniff: Optional[Sniffer] = None
     # File name inside subdir, formatted with source_id / period / ext / product.
     # None = keep the (sanitised) original name.
@@ -39,7 +39,7 @@ class Source(Category):
     """A category that has a parser feeding the common data model."""
     name: str = ""                                  # value of the `source` column
     table: str = "observations"                     # "observations" or "tide_events"
-    patterns: tuple[str, ...] = ()                  # globs relative to data/raw
+    patterns: tuple[str, ...] = ()                  # globs relative to data/weather/raw
     parse: Optional[Callable[[Path], pd.DataFrame]] = None
     exclude: tuple[str, ...] = field(default=())    # globs to skip
 
