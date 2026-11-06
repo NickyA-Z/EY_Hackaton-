@@ -25,7 +25,7 @@ Where each dataset lives is defined in one file, [`src/backend/paths.py`](../src
 | [backend.md](backend.md) | The backend modules, and how coach uploads (text, photos, transcripts) are read and tagged |
 | [rag.md](rag.md) | How the strategy RAG works: trigger rules, retrieval, briefs, CLI |
 | [ai.md](ai.md) | The AI layer as built: LangChain chat agent and briefing in the dashboard, tools, what is verified, differences from the plan |
-| [PLAN-AI-architecture.md](PLAN-AI-architecture.md) | Spec for the AI layer: routing, LangChain agents and tools, Sonnet 5.5 configuration, phases |
+| PLAN-AI-architecture.md (a colleague's spec; not committed yet, restore this link once it is) | Spec for the AI layer: routing, LangChain agents and tools, Sonnet 5.5 configuration, phases |
 | [data_model.md](data_model.md) | The common weather / tide / track tables produced by the ingest layer, and the inbox app |
 | [race_model.md](race_model.md) | The model that compares how boats sailed each leg with the time they gained |
 | [geodata.md](geodata.md) | The bathymetry and terrain pipeline for the race venue |

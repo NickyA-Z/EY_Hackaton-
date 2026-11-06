@@ -2,7 +2,7 @@
 
 A LangChain chat agent and a briefing pipeline over the tools and data the repo already has, shown in the
 dashboard as **AI briefing** (Coach brief page) and **Ask the strategist** (Strategy page). Implements the
-first slice of [PLAN-AI-architecture.md](PLAN-AI-architecture.md); the differences are listed below.
+first slice of PLAN-AI-architecture.md (a colleague's spec; not committed yet, restore this link once it is); the differences are listed below.
 
 ## Status
 
