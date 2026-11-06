@@ -17,7 +17,7 @@ dependencies = [
     "numpy==2.5.4",
     "openai>=3.46.0",
     "packaging==26.3",
-    "pandas==3.1.1",
+    "pandas==2.3.3",  # 2.x: frontend/requirements.txt needs pandas<3
     "pluggy==1.7.0",
     "pyarrow==26.0.1",
     "pygments==2.21.0",
@@ -26,12 +26,15 @@ dependencies = [
     "python-dotenv>=1.2.4",
     "requests==2.34.2",
     "ruff>=0.17.4",
+    "streamlit==1.67.0",
     "tzdata==2026.6",
     "urllib3==2.8.0",
 ]
 
-[project.scripts]
-ey-hackathon = "ey_hackathon:main"
+[tool.uv]
+# This repo is an app, not an installable package: `uv sync` installs the
+# dependencies only (without this it fails looking for src/ey_hackathon/).
+package = false
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]

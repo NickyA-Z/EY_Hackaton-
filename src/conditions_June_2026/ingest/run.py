@@ -19,6 +19,7 @@ import pandas as pd
 
 from ingest import schema
 from ingest.config import PROCESSED_DIR, RAW_DIR, REQUESTED_MONTHS
+from ingest.inbox import load_manifest
 from ingest.registry import SOURCES
 
 log = logging.getLogger("ingest.run")
@@ -27,7 +28,7 @@ MEASUREMENTS = ["wind_dir_deg", "wind_speed_kn", "wind_gust_kn", "air_temp_c",
 
 
 # Raw files that are metadata, not data (no parser expected).
-METADATA_FILES = {"noaa_coops/stations_nearby.json"}
+METADATA_FILES = {"noaa_coops/stations_nearby.json", "manifest.json"}
 
 
 def unclaimed_files(raw_dir: Path) -> list[Path]:
@@ -41,6 +42,7 @@ def unclaimed_files(raw_dir: Path) -> list[Path]:
 def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS) -> dict[str, pd.DataFrame]:
     for p in unclaimed_files(raw_dir):
         log.warning("no parser for %s (add a module + registry entry)", p.relative_to(raw_dir))
+    manifest = load_manifest(raw_dir)
     frames: dict[str, list[pd.DataFrame]] = {t: [] for t in schema.TABLES}
     for src in SOURCES:
         files = src.files(raw_dir)
@@ -52,7 +54,10 @@ def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS) -> dict[str, pd.Dat
             except Exception:
                 log.exception("%s: parser failed, file skipped", path)
                 continue
-            log.info("%-45s %6d rows", path.relative_to(raw_dir), len(df))
+            rel = path.relative_to(raw_dir).as_posix()
+            if "is_sample" in df.columns and manifest.get(rel, {}).get("is_sample"):
+                df["is_sample"] = True          # hand-made sample files, flagged at upload
+            log.info("%-45s %6d rows", rel, len(df))
             frames[src.table].append(df)
 
     tables = {}
@@ -76,6 +81,16 @@ def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS) -> dict[str, pd.Dat
         df = schema.coalesce_duplicates(df, table)
         _, key = schema.TABLES[table]
         tables[table] = df.sort_values(key).reset_index(drop=True)
+    return tables
+
+
+def build(raw_dir: Path = RAW_DIR, out_dir: Path = PROCESSED_DIR,
+          months=REQUESTED_MONTHS) -> dict[str, pd.DataFrame]:
+    """Ingest everything and write one parquet file per table."""
+    tables = ingest(raw_dir, months)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, df in tables.items():
+        df.to_parquet(out_dir / f"{name}.parquet", index=False)
     return tables
 
 
@@ -143,12 +158,9 @@ def main(argv=None) -> int:
                         format="%(levelname)-7s %(name)s: %(message)s")
     months = tuple(int(m) for m in a.months.split(","))
 
-    tables = ingest(a.raw, months)
-    a.out.mkdir(parents=True, exist_ok=True)
+    tables = build(a.raw, a.out, months)
     for name, df in tables.items():
-        path = a.out / f"{name}.parquet"
-        df.to_parquet(path, index=False)
-        print(f"wrote {path}  ({len(df)} rows)")
+        print(f"wrote {a.out / f'{name}.parquet'}  ({len(df)} rows)")
     if a.quiet:
         return 0
     return 0 if report(tables, months) else 1

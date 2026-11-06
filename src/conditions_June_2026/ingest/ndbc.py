@@ -45,6 +45,16 @@ def _header(path: Path) -> list[str]:
     return first.lstrip("#").split()
 
 
+def sniff(name: str, head: str | None) -> float:
+    """Confidence that a file is NDBC stdmet text (header line starts with '#YY')."""
+    if not head:
+        return 0.0
+    first = head.lstrip().split("\n", 1)[0]
+    if re.match(r"#\s*YY(YY)?\s+MM\s+DD\s+hh", first):
+        return 0.95
+    return 0.0
+
+
 def parse(path: str | Path, months=REQUESTED_MONTHS) -> pd.DataFrame:
     """Parse one NDBC file. `months` keeps only those months (None = keep all)."""
     path = Path(path)

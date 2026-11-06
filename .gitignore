@@ -221,3 +221,9 @@ __marimo__/
 
 # RAG vector store (rebuilt from rag-system/ by `python -m ey_hackathon.rag index`)
 .chroma/
+
+# Personal notes (not shared)
+メモ_*.md
+
+# Inbox uploads are local and untrusted
+src/conditions_June_2026/data/inbox/

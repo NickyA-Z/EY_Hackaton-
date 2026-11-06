@@ -1,35 +1,14 @@
-"""Open-Meteo marine data access and current-vector grid preparation."""
+"""Marine map bounds, vector conversion, and grid preparation."""
 
 import math
 
-import pandas as pd
-import requests
 import streamlit as st
 
-
-MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine"
-
-MARINE_VARIABLES = [
-    "ocean_current_velocity",
-    "ocean_current_direction",
-    "sea_level_height_msl",
-    "sea_surface_temperature",
-    "wave_height",
-    "wave_direction",
-    "wave_period",
-    "wave_peak_period",
-    "wind_wave_height",
-    "wind_wave_direction",
-    "wind_wave_period",
-    "swell_wave_height",
-    "swell_wave_direction",
-    "swell_wave_period",
-]
-
-VARIABLE_LABELS = {
-    variable: variable.replace("_", " ").title()
-    for variable in MARINE_VARIABLES
-}
+from backend.retrieval.marine_api import (
+    MARINE_API_URL,
+    WEATHER_ARCHIVE_URL,
+    fetch_grid_points,
+)
 
 MAP_LAYERS = {
     "Ocean currents": {
@@ -38,8 +17,12 @@ MAP_LAYERS = {
         "direction": "ocean_current_direction",
         "direction_type": "toward",
         "unit": "kn",
+        "speed_unit": "kn",
+        "color": (64, 170, 255),
         "legend": "CURRENT SPEED",
-        "description": "Particles follow the modelled surface current.",
+        "description": (
+            "Particles show where the current flows; colour shows speed."
+        ),
     },
     "Waves": {
         "mode": "directional",
@@ -47,8 +30,9 @@ MAP_LAYERS = {
         "direction": "wave_direction",
         "direction_type": "from",
         "unit": "m",
+        "color": (255, 159, 67),
         "legend": "WAVE HEIGHT",
-        "description": "Particles travel in wave-propagation direction; colour shows height.",
+        "description": "Particles show wave propagation; colour shows height.",
     },
     "Wind waves": {
         "mode": "directional",
@@ -56,8 +40,11 @@ MAP_LAYERS = {
         "direction": "wind_wave_direction",
         "direction_type": "from",
         "unit": "m",
+        "color": (192, 132, 252),
         "legend": "WIND-WAVE HEIGHT",
-        "description": "Particles travel with wind waves; colour shows height.",
+        "description": (
+            "Particles show wind-wave propagation; colour shows height."
+        ),
     },
     "Swell": {
         "mode": "directional",
@@ -65,68 +52,29 @@ MAP_LAYERS = {
         "direction": "swell_wave_direction",
         "direction_type": "from",
         "unit": "m",
+        "color": (74, 222, 128),
         "legend": "SWELL HEIGHT",
-        "description": "Particles travel in swell direction; colour shows height.",
+        "description": "Particles show swell propagation; colour shows height.",
     },
-    "Wave height": {
-        "mode": "scalar",
-        "value": "wave_height",
-        "unit": "m",
-        "legend": "WAVE HEIGHT",
-        "description": "Colour field of significant wave height.",
-    },
-    "Wave period": {
-        "mode": "scalar",
-        "value": "wave_period",
-        "unit": "s",
-        "legend": "WAVE PERIOD",
-        "description": "Colour field of mean wave period.",
-    },
-    "Sea temperature": {
-        "mode": "scalar",
-        "value": "sea_surface_temperature",
-        "unit": "°C",
-        "legend": "SEA TEMPERATURE",
-        "description": "Colour field of sea-surface temperature.",
-    },
-    "Sea level": {
-        "mode": "scalar",
-        "value": "sea_level_height_msl",
-        "unit": "m",
-        "legend": "SEA-LEVEL HEIGHT",
-        "description": "Colour field relative to global mean sea level.",
+    "Wind": {
+        "mode": "directional",
+        "magnitude": "wind_speed_10m",
+        "direction": "wind_direction_10m",
+        "direction_type": "from",
+        "unit": "kn",
+        "speed_unit": "kn",
+        "color": (245, 245, 250),
+        "legend": "WIND SPEED",
+        "description": "Particles show where the 10 m wind blows (ERA5 reanalysis); brightness shows speed.",
+        "source_url": WEATHER_ARCHIVE_URL,  # not a marine variable
+        "max_snap": 0.2,  # ERA5 grid is coarser than the marine grid
+        "visual_scale": 0.15,  # knots are ~10x the current/wave magnitudes; keep particles readable
     },
 }
 
 GRID_ROWS = 10
 GRID_COLUMNS = 17
 REQUEST_BATCH_SIZE = 45
-
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_marine_data(
-    latitude,
-    longitude,
-    start_date,
-    end_date,
-    selected_variable
-):
-    """Retrieve a historical marine time series for one coordinate."""
-    params = {
-        "latitude": latitude,
-        "longitude": longitude,
-        "start_date": str(start_date),
-        "end_date": str(end_date),
-        "hourly": selected_variable,
-        "timezone": "America/Los_Angeles",
-        "cell_selection": "sea",
-    }
-    response = requests.get(MARINE_API_URL, params=params, timeout=60)
-    response.raise_for_status()
-    data = response.json()
-    dataframe = pd.DataFrame(data["hourly"])
-    dataframe["time"] = pd.to_datetime(dataframe["time"])
-    return dataframe, data
 
 
 def _axis(start, end, count):
@@ -137,34 +85,26 @@ def _axis(start, end, count):
 def regional_bounds(latitude, longitude):
     """Bias the LA view offshore so the current field fills most of the map."""
     return {
-        "south": latitude - 0.75,
-        "north": latitude + 0.35,
-        "west": longitude - 1.65,
-        "east": longitude + 0.25,
+        "south": max(-90.0, latitude - 0.75),  # the API rejects coordinates beyond the poles / date line
+        "north": min(90.0, latitude + 0.35),
+        "west": max(-180.0, longitude - 1.65),
+        "east": min(180.0, longitude + 0.25),
     }
 
 
-def _fetch_grid_points(coordinates, selected_date, variables, velocity_unit=None):
-    """Fetch spatial points in batches that keep request URLs manageable."""
-    results = []
-    for offset in range(0, len(coordinates), REQUEST_BATCH_SIZE):
-        batch = coordinates[offset:offset + REQUEST_BATCH_SIZE]
-        params = {
-            "latitude": ",".join(f"{point[0]:.5f}" for point in batch),
-            "longitude": ",".join(f"{point[1]:.5f}" for point in batch),
-            "start_date": str(selected_date),
-            "end_date": str(selected_date),
-            "hourly": ",".join(variables),
-            "timezone": "America/Los_Angeles",
-            "cell_selection": "sea",
-        }
-        if velocity_unit:
-            params["wind_speed_unit"] = velocity_unit
-        response = requests.get(MARINE_API_URL, params=params, timeout=60)
-        response.raise_for_status()
-        payload = response.json()
-        results.extend(payload if isinstance(payload, list) else [payload])
-    return results
+def local_bounds(latitude, longitude, radius_m):
+    """Bounds centred on a sailing area, with room around its official radius."""
+    padding_m = max(radius_m * 3, 4_000)
+    latitude_padding = padding_m / 111_320
+    longitude_padding = padding_m / (
+        111_320 * max(0.2, math.cos(math.radians(latitude)))
+    )
+    return {
+        "south": latitude - latitude_padding,
+        "north": latitude + latitude_padding,
+        "west": longitude - longitude_padding,
+        "east": longitude + longitude_padding,
+    }
 
 
 def _vector_components(magnitude, direction, direction_type):
@@ -176,7 +116,7 @@ def _vector_components(magnitude, direction, direction_type):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_map_grid(latitude, longitude, selected_date, layer_name):
+def get_map_grid(latitude, longitude, selected_date, layer_name, bounds=None):
     """Build one day of scalar or directional frames for a map layer."""
     if layer_name not in MAP_LAYERS:
         raise ValueError(f"Unsupported map layer: {layer_name}")
@@ -193,7 +133,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         ]
         value_variable = configuration["magnitude"]
 
-    bounds = regional_bounds(latitude, longitude)
+    max_snap = configuration.get("max_snap", 0.11)
+    bounds = bounds or regional_bounds(latitude, longitude)
     latitudes = _axis(bounds["south"], bounds["north"], GRID_ROWS)
     longitudes = _axis(bounds["west"], bounds["east"], GRID_COLUMNS)
     coordinates = [
@@ -201,11 +142,13 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         for grid_latitude in latitudes
         for grid_longitude in longitudes
     ]
-    results = _fetch_grid_points(
+    results = fetch_grid_points(
         coordinates,
         selected_date,
         variables,
-        velocity_unit="kn" if layer_name == "Ocean currents" else None,
+        batch_size=REQUEST_BATCH_SIZE,
+        velocity_unit=configuration.get("speed_unit"),
+        url=configuration.get("source_url", MARINE_API_URL),
     )
 
     if len(results) != len(coordinates):
@@ -237,8 +180,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
             snapped_too_far = (
                 returned_latitude is None
                 or returned_longitude is None
-                or abs(returned_latitude - requested_latitude) > 0.11
-                or abs(returned_longitude - requested_longitude) > 0.11
+                or abs(returned_latitude - requested_latitude) > max_snap
+                or abs(returned_longitude - requested_longitude) > max_snap
             )
             if value is None or snapped_too_far:
                 eastward.append(None)
@@ -300,6 +243,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name):
         "minimum_value": round(minimum_value, 2),
         "maximum_value": round(maximum_value, 2),
         "unit": configuration["unit"],
+        "color": list(configuration["color"]),
+        "visual_scale": configuration.get("visual_scale", 1.0),
         "requested_location": {
             "latitude": latitude,
             "longitude": longitude,
