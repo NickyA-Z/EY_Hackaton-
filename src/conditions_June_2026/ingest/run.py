@@ -39,13 +39,17 @@ def unclaimed_files(raw_dir: Path) -> list[Path]:
                   and p.relative_to(raw_dir).as_posix() not in METADATA_FILES)
 
 
-def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS) -> dict[str, pd.DataFrame]:
+def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS,
+           include_external: bool | None = None) -> dict[str, pd.DataFrame]:
+    """Parse all sources. External folders (config.EXTERNAL_DIRS) are read only for the real RAW_DIR."""
+    if include_external is None:
+        include_external = Path(raw_dir).resolve() == RAW_DIR.resolve()
     for p in unclaimed_files(raw_dir):
         log.warning("no parser for %s (add a module + registry entry)", p.relative_to(raw_dir))
     manifest = load_manifest(raw_dir)
     frames: dict[str, list[pd.DataFrame]] = {t: [] for t in schema.TABLES}
     for src in SOURCES:
-        files = src.files(raw_dir)
+        files = src.files(raw_dir, include_external)
         if not files:
             log.warning("%s/%s: no files found for %s", src.name, src.table, src.patterns)
         for path in files:
@@ -54,7 +58,7 @@ def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS) -> dict[str, pd.Dat
             except Exception:
                 log.exception("%s: parser failed, file skipped", path)
                 continue
-            rel = path.relative_to(raw_dir).as_posix()
+            rel = path.relative_to(raw_dir).as_posix() if path.is_relative_to(raw_dir) else str(path)
             if "is_sample" in df.columns and manifest.get(rel, {}).get("is_sample"):
                 df["is_sample"] = True          # hand-made sample files, flagged at upload
             log.info("%-45s %6d rows", rel, len(df))
@@ -67,7 +71,7 @@ def ingest(raw_dir: Path = RAW_DIR, months=REQUESTED_MONTHS) -> dict[str, pd.Dat
 
         outside = ~df["time_utc"].dt.month.isin(months)
         if outside.any():
-            by = df.loc[outside, "source" if table == "observations" else "station_id"].value_counts()
+            by = df.loc[outside, "source" if "source" in df.columns else "station_id"].value_counts()
             log.info("%s: dropped %d rows outside months %s: %s", table, int(outside.sum()),
                      months, by.to_dict())
             df = df[~outside]
@@ -99,7 +103,7 @@ def report(tables: dict[str, pd.DataFrame], months) -> bool:
     ok = True
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 20)
-    obs, tides = tables["observations"], tables["tide_events"]
+    obs, tides, trk = tables["observations"], tables["tide_events"], tables["tracks"]
 
     print("\n=== observations: per source ===")
     summary = obs.groupby("source").agg(
@@ -119,17 +123,31 @@ def report(tables: dict[str, pd.DataFrame], months) -> bool:
           f"range={tides['time_utc'].min()} .. {tides['time_utc'].max()}  "
           f"types={tides['type'].value_counts().to_dict()}")
 
+    print("\n=== tracks ===")
+    if trk.empty:
+        print("no tracks")
+    else:
+        per = trk.groupby("track_id").agg(
+            sailor=("sailor", "first"), top=("is_top_finisher", "first"), fixes=("time_utc", "size"),
+            start=("time_utc", "min"), end=("time_utc", "max"),
+            median_kn=("speed_kn", "median"), max_kn=("speed_kn", "max"))
+        print(f"tracks={len(per)}  fixes={len(trk)}  top finishers={int(per['top'].sum())}  "
+              f"range={trk['time_utc'].min()} .. {trk['time_utc'].max()}  "
+              f"speed missing={trk['speed_kn'].isna().mean():.1%}")
+        print(per.sort_values("median_kn", ascending=False).head(8).round(2).to_string())
+
     print("\n=== sanity checks ===")
     checks = {
         "observations schema/range/duplicate validation": schema.validate(obs),
         "tide_events schema/range/duplicate validation": schema.validate(tides, "tide_events"),
+        "tracks schema/range/duplicate validation": schema.validate(trk, "tracks"),
     }
     for name, problems in checks.items():
         print(f"[{'OK' if not problems else 'FAIL'}] {name}")
         for p in problems:
             print("       -", p)
         ok &= not problems
-    for name, df in (("observations", obs), ("tide_events", tides)):
+    for name, df in (("observations", obs), ("tide_events", tides), ("tracks", trk)):
         bad = int((~df["time_utc"].dt.month.isin(months)).sum())
         print(f"[{'OK' if not bad else 'FAIL'}] {name}: all times in months {months} (bad={bad})")
         ok &= not bad

@@ -35,9 +35,27 @@ TIDE_EVENT_COLUMNS: dict[str, object] = {
 }
 TIDE_EVENT_KEY = ["station_id", "time_utc"]
 
+# One row per GPS fix of one boat. speed/course are derived from consecutive fixes.
+TRACK_COLUMNS: dict[str, object] = {
+    "time_utc": UTC,
+    "lat": "float64",
+    "lon": "float64",
+    "source": "string",            # sailsync / gpx / ...
+    "track_id": "string",          # unique per boat per session, e.g. "2796_15377"
+    "sailor": "string",            # nullable
+    "nation": "string",            # 3-letter code, nullable
+    "sail_no": "string",           # e.g. "AUS 199015", nullable
+    "is_top_finisher": "bool",     # SailSync: file sits in a 'winners' folder
+    "speed_kn": "float64",         # speed over ground; NaN after a gap or a GPS jump
+    "course_deg": "float64",       # course over ground, 0-360 (direction moving TO)
+    "is_sample": "bool",
+}
+TRACK_KEY = ["source", "track_id", "time_utc"]
+
 TABLES = {
     "observations": (OBSERVATION_COLUMNS, OBSERVATION_KEY),
     "tide_events": (TIDE_EVENT_COLUMNS, TIDE_EVENT_KEY),
+    "tracks": (TRACK_COLUMNS, TRACK_KEY),
 }
 
 # Plausibility ranges used by validate(); values outside are reported, not silently fixed.
@@ -52,6 +70,8 @@ RANGES = {
     "wave_height_m": (0, 15),
     "cloud_cover_pct": (0, 100),
     "height_m": (-3, 4),
+    "speed_kn": (0, 30),
+    "course_deg": (0, 360),
 }
 
 

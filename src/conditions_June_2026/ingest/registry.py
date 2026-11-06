@@ -15,7 +15,8 @@ from typing import Callable, Optional
 
 import pandas as pd
 
-from . import coops, metar, ndbc, open_meteo
+from . import coops, gpx, metar, ndbc, open_meteo, sailsync
+from .config import EXTERNAL_DIRS
 
 Sniffer = Callable[[str, Optional[str]], float]
 
@@ -42,9 +43,14 @@ class Source(Category):
     parse: Optional[Callable[[Path], pd.DataFrame]] = None
     exclude: tuple[str, ...] = field(default=())    # globs to skip
 
-    def files(self, raw_dir: Path) -> list[Path]:
+    external_patterns: tuple[str, ...] = ()        # globs inside EXTERNAL_DIRS[key]
+
+    def files(self, raw_dir: Path, include_external: bool = False) -> list[Path]:
         found = {p for pat in self.patterns for p in raw_dir.glob(pat)}
         skipped = {p for pat in self.exclude for p in raw_dir.glob(pat)}
+        ext = EXTERNAL_DIRS.get(self.key)
+        if include_external and ext is not None and ext.exists():
+            found |= {p for pat in self.external_patterns for p in ext.glob(pat)}
         return sorted(found - skipped)
 
 
@@ -71,28 +77,23 @@ SOURCES: list[Source] = [
            description="Open-Meteo API JSON with 'hourly' arrays (time, wind_speed_10m, ...) for one point",
            sniff=open_meteo.sniff, filename="{source_id}_{period}.json", needs=("source_id", "period"),
            patterns=("open_meteo/*.json",), parse=open_meteo.parse),
+    Source(key="gps_track", name="sailsync", table="tracks", subdir="tracks",
+           description="GPS track of a boat as CSV with time + lat + lon/lng columns (e.g. SailSync export)",
+           sniff=sailsync.sniff, patterns=("tracks/**/*.csv",), parse=sailsync.parse,
+           external_patterns=("*.csv", "winners/*.csv")),
+    Source(key="gpx_track", name="gpx", table="tracks", subdir="tracks",
+           description="GPS track in GPX format (XML with <trkpt lat lon><time>)",
+           sniff=gpx.sniff, patterns=("tracks/**/*.gpx",), parse=gpx.parse),
 ]
 
 
 # --- categories that are recognised and stored, but have no parser yet -------------
-
-def _sniff_gps(name: str, head: Optional[str]) -> float:
-    if not head:
-        return 0.0
-    if "<gpx" in head[:2000]:
-        return 0.95
-    cols = {c.strip().lower() for c in head.splitlines()[0].split(",")} if head.strip() else set()
-    has_time = any("time" in c for c in cols)
-    return 0.9 if has_time and "lat" in cols and cols & {"lon", "lng", "long"} else 0.0
-
 
 def _sniff_raster(name: str, head: Optional[str]) -> float:
     return 0.9 if name.lower().endswith((".tif", ".tiff")) else 0.0
 
 
 STORAGE_ONLY: list[Category] = [
-    Category(key="gps_track", subdir="tracks", sniff=_sniff_gps,
-             description="GPS track of a boat: GPX, or CSV with time + lat + lon/lng columns"),
     Category(key="geo_raster", subdir="geo", sniff=_sniff_raster,
              description="Gridded geodata such as bathymetry or terrain (GeoTIFF)"),
     Category(key="coach_notes", subdir="notes",
