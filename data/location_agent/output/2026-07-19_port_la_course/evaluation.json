@@ -3,7 +3,7 @@
  "area": "port_la_course",
  "strategy_file": "strategy_anthropic_claude-sonnet-5-5.json",
  "model": "claude-sonnet-5-5",
- "created": "2026-11-06 11:12",
+ "created": "2026-11-06 12:44",
  "races": [
   {
    "race": 1,
@@ -60,8 +60,8 @@
    "full_race": {
     "agent": {
      "finished": true,
-     "finish_s": 2374,
-     "finish": "39:34",
+     "finish_s": 2372,
+     "finish": "39:32",
      "legs": [
       {
        "leg": 1,
@@ -69,7 +69,7 @@
        "to": "mark1",
        "start_s": 0,
        "at_mark_s": 760,
-       "within_80m_s": 734,
+       "within_80m_s": 712,
        "time_s": 760,
        "tacks": 5
       },
@@ -78,19 +78,19 @@
        "type": "run",
        "to": "gate3",
        "start_s": 760,
-       "at_mark_s": 1300,
-       "within_80m_s": 1280,
-       "time_s": 540,
+       "at_mark_s": 1298,
+       "within_80m_s": 1278,
+       "time_s": 538,
        "gybes": 2
       },
       {
        "leg": 3,
        "type": "beat",
        "to": "mark2",
-       "start_s": 1300,
+       "start_s": 1298,
        "at_mark_s": 1880,
-       "within_80m_s": 1834,
-       "time_s": 580,
+       "within_80m_s": 1832,
+       "time_s": 582,
        "tacks": 4
       },
       {
@@ -98,18 +98,18 @@
        "type": "run",
        "to": "gate3",
        "start_s": 1880,
-       "at_mark_s": 2236,
-       "within_80m_s": 2210,
-       "time_s": 356,
+       "at_mark_s": 2234,
+       "within_80m_s": 2214,
+       "time_s": 354,
        "gybes": 1
       },
       {
        "leg": 5,
        "type": "reach",
        "to": "finish",
-       "start_s": 2236,
-       "at_mark_s": 2398,
-       "within_80m_s": 2374,
+       "start_s": 2234,
+       "at_mark_s": 2396,
+       "within_80m_s": 2372,
        "time_s": 162,
        "turns": 0
       }
@@ -171,7 +171,7 @@
         "data_coverage_pct": 45
        }
       ],
-      "gap_agent_minus_winner_s": 55
+      "gap_agent_minus_winner_s": 53
      },
      {
       "boat": "Elliot Hanson (GBR)",
@@ -219,7 +219,7 @@
         "data_coverage_pct": 46
        }
       ],
-      "gap_agent_minus_winner_s": 25
+      "gap_agent_minus_winner_s": 23
      },
      {
       "boat": "Duko Bos (NED)",
@@ -267,7 +267,7 @@
         "data_coverage_pct": 18
        }
       ],
-      "gap_agent_minus_winner_s": 5
+      "gap_agent_minus_winner_s": 3
      },
      {
       "boat": "Lorenzo Brando Chiavarini (ITA)",
@@ -315,7 +315,7 @@
         "data_coverage_pct": 26
        }
       ],
-      "gap_agent_minus_winner_s": -35
+      "gap_agent_minus_winner_s": -37
      }
     ],
     "boat_model": {

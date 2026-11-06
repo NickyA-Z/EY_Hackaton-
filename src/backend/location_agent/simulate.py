@@ -101,12 +101,18 @@ def load_fleet(session_id: int) -> Fleet:
     return Fleet({k: classify(v, w) for k, v in boats.items()}, raw, winners, w)
 
 
+def epoch_s(times) -> np.ndarray:
+    """Epoch seconds of a datetime column or index, whatever its stored unit (ns, us, ms, s). The conditions table is
+    microseconds; ``astype("int64") // 10**9`` assumes nanoseconds and silently produced times 1000x too small."""
+    return pd.DatetimeIndex(times).tz_convert("UTC").as_unit("s").asi8.astype(float)
+
+
 def truth_wind(fleet: Fleet) -> Wind:
     w = fleet.wind_gps
-    t = (w.index.tz_convert("UTC").astype("int64") // 10**9).to_numpy(dtype=float)
+    t = epoch_s(w.index)
     df = pd.read_parquet(CONDITIONS, columns=["time_utc", "site", "variable", "value"])
     s = df[(df.site == "port_la_course") & (df.variable == "wind_speed")].sort_values("time_utc")
-    ts = (s.time_utc.astype("int64") // 10**9).to_numpy(dtype=float)
+    ts = epoch_s(s.time_utc)
     return Wind(t, w.twd_gps.to_numpy(dtype=float), np.interp(t, ts, s.value.to_numpy(dtype=float)))
 
 

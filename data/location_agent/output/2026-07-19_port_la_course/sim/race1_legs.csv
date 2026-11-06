@@ -1,9 +1,9 @@
 boat,leg,type,to,start_s,at_mark_s,within_80m_s,time_s,tacks,gybes,turns,data_coverage_pct
-OUR BOAT (sim),1,beat,mark1,0.0,760.0,734.0,760.0,5.0,,,
-OUR BOAT (sim),2,run,gate3,760.0,1300.0,1280.0,540.0,,2.0,,
-OUR BOAT (sim),3,beat,mark2,1300.0,1880.0,1834.0,580.0,4.0,,,
-OUR BOAT (sim),4,run,gate3,1880.0,2236.0,2210.0,356.0,,1.0,,
-OUR BOAT (sim),5,reach,finish,2236.0,2398.0,2374.0,162.0,,,0.0,
+OUR BOAT (sim),1,beat,mark1,0.0,760.0,712.0,760.0,5.0,,,
+OUR BOAT (sim),2,run,gate3,760.0,1298.0,1278.0,538.0,,2.0,,
+OUR BOAT (sim),3,beat,mark2,1298.0,1880.0,1832.0,582.0,4.0,,,
+OUR BOAT (sim),4,run,gate3,1880.0,2234.0,2214.0,354.0,,1.0,,
+OUR BOAT (sim),5,reach,finish,2234.0,2396.0,2372.0,162.0,,,0.0,
 Matt Wearn (AUS) (real),1,beat,mark1,,,679.0,,2.0,,,91.0
 Matt Wearn (AUS) (real),2,run,gate3,,,1259.0,,,1.0,,24.0
 Matt Wearn (AUS) (real),3,beat,mark2,,,,,1.0,,,36.0
