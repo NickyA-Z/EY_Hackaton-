@@ -57,7 +57,8 @@ def legs(data=DATA):
     df["rank_at_mark"] = by_leg["t_end"].rank(method="min").astype(int)
     df["behind_s"] = df["t_end"] - by_leg["t_end"].transform("min")
     df["behind_entry_s"] = df["t_start"] - by_leg["t_start"].transform("min")
-    df["gained_s"] = df["behind_entry_s"] - df["behind_s"]  # + = gained on the leaders during this leg
+    # + = faster over this leg than the typical boat (leg 1 starts level, so this is the fleet median, not the leader)
+    df["gained_s"] = by_leg["t_end"].transform("median") - by_leg["t_start"].transform("median") - (df["t_end"] - df["t_start"])
     return df.sort_values(["session", "race", "leg", "rank_at_mark"]).reset_index(drop=True)
 
 
