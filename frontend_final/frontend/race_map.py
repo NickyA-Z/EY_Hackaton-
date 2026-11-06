@@ -101,8 +101,10 @@ CURRENT_MAP_HTML = r"""
     .finish-note {font-size:10px;color:#b9cdd0;line-height:1.4;margin-top:7px;}
     @media(max-width:600px) {.gps-metrics{display:none!important}.finish-panel{top:125px;width:190px;right:10px;}}
     body.race-replay .hud {top:auto;bottom:18px;left:16px;width:calc(100% - 32px);}
+    body.race-replay .hud-top {justify-content:flex-start;flex-wrap:wrap;gap:12px;}
     body.race-replay .play {background:#2bd4a4;color:#071c2c;border:0;padding:11px 18px;
-      font:700 14px ui-sans-serif,system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35);}
+      font:700 14px ui-sans-serif,system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35);
+      order:-1;flex:none;align-self:center;}
     body.race-replay .play:hover {background:#75ebc9;}
     body.race-replay .readout, body.race-replay .legend {display:none;}
     body.race-replay .finish-panel {width:280px;top:185px;}
@@ -627,7 +629,7 @@ CURRENT_MAP_HTML = r"""
         if(!gpsPlaying)return;
         renderGps(Math.min(gpsIndex+1,replayTimes.length-1));
         if(gpsIndex===replayTimes.length-1){gpsPlaying=false;updatePlayButton();}
-      },350);
+      },20);
       updatePlayButton();
       renderGps(gpsIndex);
     } else if (locationOnly) {

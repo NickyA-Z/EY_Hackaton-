@@ -13,8 +13,9 @@ def test_rate_limit_stops_remaining_layers_and_keeps_loaded_grid(monkeypatch):
     warnings = []
     state = {}
 
-    def get_grid(_latitude, _longitude, _day, name):
+    def get_grid(_latitude, _longitude, _day, name, **options):
         calls.append(name)
+        assert options["grid_rows"] == options["grid_columns"] == 5
         if name == "Waves":
             response = requests.Response()
             response.status_code = 429

@@ -501,6 +501,9 @@ def main():
         st.session_state[key] = st.session_state.get(key, st.session_state.get(f"_{key}", default))
         st.session_state[f"_{key}"] = st.session_state[key]
     if mode == "● Live":
+        if not st.session_state.get("globe_entered"):
+            st.info("Choose a venue in Preparation before loading live marine data.")
+            return
         agent_views.render_live(showcase=APP_TITLE)
         st.caption("Data: Open-Meteo Marine API. Ocean currents are modelled, not station measurements.")
         return

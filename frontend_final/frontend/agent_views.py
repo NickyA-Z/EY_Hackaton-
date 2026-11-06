@@ -452,7 +452,11 @@ def load_layer_grids(names, latitude, longitude, day):
                 grids.append(cache[cache_key])
                 continue
             try:
-                grid = get_map_grid(latitude, longitude, day, name)
+                grid = get_map_grid(
+                    latitude, longitude, day, name,
+                    bounds=local_bounds(latitude, longitude, 4_000),
+                    grid_rows=5, grid_columns=5,
+                )
                 cache[cache_key] = grid
                 grids.append(grid)
             except requests.exceptions.RequestException as error:
@@ -530,6 +534,8 @@ def render_speed_area_map(
                     location_info["lon"],
                     location_info["radius_m"],
                 ),
+                grid_rows=5,
+                grid_columns=5,
             )
     except requests.exceptions.RequestException as error:
         if getattr(getattr(error, "response", None), "status_code", None) == 429:

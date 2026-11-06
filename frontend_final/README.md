@@ -92,7 +92,8 @@ Ocean-current directions describe where the current is flowing toward: 0° is
 north, 90° east, 180° south, and 270° west. The values are modelled marine data,
 not measurements from a local instrument.
 
-The map samples a 17 × 10 regional grid and caches each layer for one hour.
+The map samples a 5 × 5 grid around the selected location, so each layer fits
+in one API batch. It caches each layer for one hour.
 Particle motion is visually accelerated; it shows directional patterns rather
 than literal travel distance per animation second. Open-Meteo notes that
 coastal current accuracy is limited, so this view is not suitable for
