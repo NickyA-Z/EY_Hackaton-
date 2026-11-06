@@ -15,7 +15,9 @@ import requests  # noqa: E402
 
 from backend import analysis, boat_speed, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
+from backend.ai import snapshot  # noqa: E402
 from backend.compute.map_grid import MAP_LAYERS, get_map_grid, local_bounds  # noqa: E402
+from frontend import ai_views  # noqa: E402
 from frontend.current_map import combine_layers, render_current_map  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
@@ -790,6 +792,8 @@ def render_coach_brief():
             st.markdown(f"Plan confidence: **{brief['confidence']}**")
         st.button("Start live monitoring →", type="primary", width="stretch", on_click=go, args=("live",))
 
+    ai_views.render_ai_brief(snapshot.conditions_from_insight(insight), f"{st.session_state.race_day}_{insight['hour']}")
+
     st.subheader("Race-area conditions at the planned hour")
     render_layer_map("brief_map", insight["hour"], height=420)
 
@@ -949,6 +953,9 @@ def render_strategy_overview():
             for tab, item in zip(race_tabs, summary["races"]):
                 tab.bar_chart({name: offset for name, offset in sorted(item["offsets"].items(), key=lambda kv: kv[1])},
                               horizontal=True, height=520)
+
+    ai_views.render_plan()
+    ai_views.render_chat(snapshot.context_text(st.session_state))
 
 
 # ---------- 7. Speed forecast ----------
