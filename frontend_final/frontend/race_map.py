@@ -584,9 +584,9 @@ CURRENT_MAP_HTML = r"""
         let pointIndex=0;
         while(pointIndex<gpsTrack.length-1 && gpsTrack[pointIndex+1].time_epoch<=replayTime)pointIndex++;
         const point=gpsTrack[pointIndex];
-        const hasFocus=!focusSynthetic && point.time_epoch<=replayTime && replayTime-point.time_epoch<=30;
+        const hasFocus=point.time_epoch<=replayTime && replayTime-point.time_epoch<=30;
         trail.clearLayers();
-        for(let i=1;!focusSynthetic && i<=pointIndex;i++){
+        for(let i=1;i<=pointIndex;i++){
           if(gpsTrack[i].time_epoch>replayTime)break;
           if(gpsTrack[i].time_epoch-gpsTrack[i-1].time_epoch>30)continue;
           const colour=gpsTrack[i].colour;

@@ -244,7 +244,9 @@ def document_entries():
 
 @st.cache_data(show_spinner="Preparing ILCA 7 telemetry…")
 def speed_dataset(horizon_seconds=30):
-    return boat_speed.build_dataset(horizon_seconds)
+    dataset = boat_speed.build_dataset(horizon_seconds)
+    dataset["boat"] = dataset["boat"].replace(SPEED_BOAT_NAMES)
+    return dataset
 
 
 @st.cache_resource(show_spinner="Training ILCA 7 speed model…")
@@ -266,6 +268,7 @@ SPEED_LEADER_LABELS = {
     "Duko Bos": "3 · Duko Bos (NED 206717)",
 }
 SPEED_SELECTOR_EXCLUSIONS = {"2796_15347_USA_211414"}
+SPEED_BOAT_NAMES = {"Clemente Seguel Lac mara": "Clemente Seguel Lacámara"}
 
 
 def speed_colour(speed_kt):
