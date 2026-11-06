@@ -37,7 +37,9 @@ def _action_lines(ap: dict | None) -> list[str]:
            f"{s['first_tack']} tack, hold {s['hold_first_tack_s']:.0f} s",
            f"- **Upwind:** go {u['target_side']} up to {u['max_lateral_m']:.0f} m off the rhumb line; tack on headers "
            f">= {u['tack_on_header_deg']:.0f} deg held {u['header_hold_s']:.0f} s; overstand laylines {u['layline_overstand_m']:.0f} m",
-           f"- **Downwind:** favour {ap['downwind']['target_side']}"]
+           f"- **Downwind (every run):** favour {ap['downwind']['target_side']} up to "
+           f"{ap['downwind'].get('max_lateral_m', 0):.0f} m off the rhumb line; gybe on lifts >= "
+           f"{ap['downwind'].get('gybe_on_lift_deg', 0):.0f} deg; gybe on the layline"]
     out += [f"- **If** {t['condition']} {t['value']:g} -> side {t['then_target_side']}, tack on {t['then_tack_on_header_deg']:.0f} deg "
             f"({t['why']})" for t in ap.get("triggers", [])]
     return out

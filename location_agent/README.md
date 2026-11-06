@@ -32,8 +32,8 @@ src/conditions_July (+ June pack, geo_data, GPS analysis)
 | `strategist.py` | CLI tying it together; writes the strategy JSON and the printable briefing card (with the action plan) |
 | `course/<date>.json` | Course per race, **coordinates only**: start-line ends, mark 1, mark 2, leeward gate, finish area. Each has a boat count and spread; `uncertain` = fewer than 5 boats. Today derived from all 44 tracks by `strategy/gps_analysis/derive_course.py` (until official SailSync / race-committee data arrives) |
 | `inputs/` | `<date>_rag_insights.txt`: the RAG's text insights (built from the user's inputs). Attached at call time, never stored in the feature pack. See `inputs/README.md`. |
-| `simulate.py` | First-beat simulator: rule executor for `action_plan`, "ghost" replays of real boats, tracks in SailSync CSV format |
-| `evaluate.py` | Scores a strategy: decisions vs the real fleet, our simulated boat vs the ghosts and winners, simulator calibration |
+| `simulate.py` | Full-race simulator: sails the `action_plan` over every leg of the course (beats, runs, the reach to the finish) and writes our boat's positions at the race winner's timestamps (SailSync CSV format) |
+| `evaluate.py` | Scores a strategy: first-beat decisions against the real fleet; our full race against the 4 winners' real tracks (time at each mark, finish, indicative rank) |
 | `.env.example` | Model configuration template |
 
 ## Setup
@@ -100,13 +100,18 @@ python -m location_agent.evaluate --date 2026-07-19
 python -m location_agent.evaluate --date 2026-07-19 --rerun --note "what I changed"
 ```
 - The first command scores the newest strategy file. `--rerun` runs the strategist first; add `--provider mock` to test offline.
-- It covers the **first beat of races 1–3**: race 1 is for tuning, races 2–3 are checks. The plan is made once in the morning. It's all one day, so the proof is weak.
+- **Race 1 only by default** (`--races 1,2,3` for the others). The course is beat → mark 1, run → gate, beat → mark 2, run → gate, reach → finish, derived from the 44 tracks (`course/2026-07-19.json`).
+- **Outputs** in `output/<date>_<area>/sim/`:
+  - `race1_agent.csv`: our boat's lat/lon at **exactly the timestamps of the race-1 winner's real track** (Matt Wearn), from the gun to his finish (192 rows), in the SailSync format
+  - `race1_agent_full.csv`: our boat's full 2 s track
+  - `race1_course.json`: the marks in sailing order
+  - `race1_legs.csv`: time at each mark and tacks/gybes per leg, for our boat and the 4 winners
 - **Iteration is manual:** read `evaluation.md`, change general things only (prompt rules, features, settings; never race-specific facts), then re-run with `--note`. Each run adds one line to `output/iterations.md`.
 - **Simulator limits:**
   - The wind is the same everywhere on the course; the data can't resolve left/right pressure differences.
-  - No current, no boat-on-boat interaction.
-  - Mark 1 is uncertain by 40–140 m in races 2–3.
-  - Simulated times are only compared when the ghosts reproduce the real times within 5 %. On 19 Jul they are within 3–5 %.
+  - Speeds are the fleet's medians for each leg type; no current, no boat-on-boat interaction, no mark-rounding loss.
+  - Tracker gaps hide most roundings of mark 1 and mark 2. Mark 2 is therefore estimated **from timing** (32 boats' real gate-to-gate time with the fleet's measured speeds), and is flagged uncertain.
+  - The winners' times are real and ours are simulated, so time gaps include these simplifications.
 
 ## Notes on the Claude call
 - **Model:** `claude-opus-5-5` by default, with effort `medium` (`LLM_EFFORT`; higher effort = more thinking = more cost). `LLM_MAX_TOKENS=8000` is a ceiling, not a charge.

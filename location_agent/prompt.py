@@ -70,7 +70,8 @@ Translate your strategy into "action_plan". It is executed literally, every few 
 - upwind.target_side + upwind.max_lateral_m: go to that side of the rhumb line (start/gate -> windward mark) up to this distance before coming back ("middle" = stay within it either side).
 - upwind.tack_on_header_deg + upwind.header_hold_s: tack when the wind has been heading the boat by at least this many degrees (vs the mean of the last 10 min) for this many seconds; a very large value means "ignore shifts" (persistent strategy).
 - upwind.layline_overstand_m: extra distance beyond the layline before tacking for the mark.
-- downwind.target_side: side of the run to favour.
+- The upwind rules apply to EVERY beat (first beat from the start line, later beats from the gate).
+- downwind (every run): target_side + max_lateral_m work like upwind (side of the run's rhumb line and how far to go); gybe_on_lift_deg: gybe when the wind has lifted the boat by at least this many degrees for header_hold_s (downwind a lift takes you away from the mark); runs end with a gybe on the layline.
 - triggers: optional changes if the day differs from the forecast (e.g. wind_dir_right_of_deg 280 -> target_side right). Each trigger replaces target_side and tack_on_header_deg once it fires ("keep" = unchanged side).
 These numbers are YOUR decisions (they need no pack_path), but they must follow from the strategy.
 
@@ -122,8 +123,9 @@ ACTION_PLAN = {
             "header_hold_s": {"type": "number"}, "layline_overstand_m": {"type": "number"}},
             "required": ["target_side", "max_lateral_m", "tack_on_header_deg", "header_hold_s", "layline_overstand_m"],
             "additionalProperties": False},
-        "downwind": {"type": "object", "properties": {"target_side": _SIDE},
-                     "required": ["target_side"], "additionalProperties": False},
+        "downwind": {"type": "object", "properties": {
+            "target_side": _SIDE, "max_lateral_m": {"type": "number"}, "gybe_on_lift_deg": {"type": "number"}},
+            "required": ["target_side", "max_lateral_m", "gybe_on_lift_deg"], "additionalProperties": False},
         "triggers": {"type": "array", "items": {"type": "object", "properties": {
             "condition": {"type": "string", "enum": ["wind_speed_below_kn", "wind_speed_above_kn",
                                                      "wind_dir_right_of_deg", "wind_dir_left_of_deg"]},
@@ -192,6 +194,18 @@ OUTPUT_SCHEMA = {
                  "action_plan", "block_readings", "briefing_card_markdown", "data_gaps_and_uncertainty"],
     "additionalProperties": False,
 }
+
+
+def compact_schema(schema: dict = None) -> dict:
+    """Same answer shape, smaller grammar for Claude's strict JSON mode: the 'reason' object is defined once
+    ($defs) and referenced by Q1-Q3 instead of being copied three times (the inline version is rejected as
+    'compiled grammar is too large'). The local checks keep using OUTPUT_SCHEMA."""
+    import copy
+    s = copy.deepcopy(schema or OUTPUT_SCHEMA)
+    s["$defs"] = {"reason": copy.deepcopy(_REASON)}
+    for q in ("q1_favoured_side", "q2_shift_pattern", "q3_start"):
+        s["properties"][q]["properties"]["reasons"]["items"] = {"$ref": "#/$defs/reason"}
+    return s
 
 
 def user_message(pack: dict) -> str:

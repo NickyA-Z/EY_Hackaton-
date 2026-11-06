@@ -1,0 +1,71 @@
+{
+ "race": 1,
+ "gun_epoch": 1784495701.0,
+ "start_line": [
+  [
+   33.687467,
+   -118.268611
+  ],
+  [
+   33.690469,
+   -118.268425
+  ]
+ ],
+ "legs": [
+  {
+   "leg": 1,
+   "type": "beat",
+   "to": "mark1",
+   "mark_lat_lon": [
+    33.689279,
+    -118.283202
+   ],
+   "uncertain": false,
+   "spread_m": 38
+  },
+  {
+   "leg": 2,
+   "type": "run",
+   "to": "gate3",
+   "mark_lat_lon": [
+    33.680074,
+    -118.269349
+   ],
+   "uncertain": false,
+   "spread_m": 32
+  },
+  {
+   "leg": 3,
+   "type": "beat",
+   "to": "mark2",
+   "mark_lat_lon": [
+    33.683617,
+    -118.280058
+   ],
+   "uncertain": true,
+   "spread_m": 110
+  },
+  {
+   "leg": 4,
+   "type": "run",
+   "to": "gate3",
+   "mark_lat_lon": [
+    33.680074,
+    -118.269349
+   ],
+   "uncertain": false,
+   "spread_m": 32
+  },
+  {
+   "leg": 5,
+   "type": "reach",
+   "to": "finish",
+   "mark_lat_lon": [
+    33.683965,
+    -118.26797
+   ],
+   "uncertain": false,
+   "spread_m": 66
+  }
+ ]
+}

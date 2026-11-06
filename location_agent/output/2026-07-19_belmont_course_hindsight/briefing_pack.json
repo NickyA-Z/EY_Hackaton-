@@ -1,13 +1,13 @@
 {
  "pack_version": 2,
- "created": "2026-11-06 09:22",
+ "created": "2026-11-06 11:07",
  "context": {
   "venue": "LA28 sailing - Belmont Shore board course (inside Long Beach breakwater)",
   "race_day": "2026-07-19",
   "race_window_local": "13:00-17:00",
   "boat_class": "ILCA 7",
   "mode": "hindsight: all data",
-  "fingerprint": "ed169d49b6c6",
+  "fingerprint": "ef3b37265479",
   "climatology_years": [
    2021,
    2022,

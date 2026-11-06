@@ -25,6 +25,7 @@ Run from the repo root:  python strategy/gps_analysis/derive_course.py
 """
 from __future__ import annotations
 
+import collections
 import json
 import sys
 from pathlib import Path
@@ -126,6 +127,43 @@ def start_line(raw: dict[str, pd.DataFrame], gun: float, twd: float) -> dict | N
             "n_front_row": int(len(row)), "front_row_spread_m": round(resid)}
 
 
+def mark2_from_timing(boats, t0, gate_xy, observed, twd):
+    """Mark 2 when its roundings are hidden by tracker gaps: the leaders' data stops while they are still beating,
+    so 'where the data stops' is too close to the gate. Keep the observed direction (gate -> observed tops) and
+    set the distance D so that the fleet's REAL gate-to-gate time (boats seen at the gate on both laps) equals
+    D / upwind VMG + D / downwind VMG + turn losses, with VMGs measured from the same fleet in this race."""
+    gx, gy = gate_xy
+    laps, up, dn, dn_twa = [], [], [], []
+    for b in boats.values():
+        r = b[(b.index >= t0) & (b.index <= t0 + pd.Timedelta(minutes=50))]
+        near = r.index[np.hypot(r.x - gx, r.y - gy) <= 80]
+        if len(near) >= 2:
+            first = near[0]
+            second = near[near > first + pd.Timedelta(minutes=8)]
+            if len(second):
+                laps.append((second[0] - first).total_seconds())
+        up += list(r[(r["mode"] == "upwind") & (r.speed_kn > 2.5)].speed_kn)
+        d = r[(r["mode"] == "downwind") & (r.speed_kn > 2.5)]
+        dn += list(d.speed_kn)
+        dn_twa += list(np.abs(d.twa))
+    if len(laps) < 3 or not up or not dn:
+        return None
+    ta = 84.0
+    vmg_up = np.median(up) * np.cos(np.radians(ta / 2)) / 1.94384           # m/s
+    vmg_dn = np.median(dn) * np.cos(np.radians(180 - np.median(dn_twa))) / 1.94384
+    lap = float(np.median(laps))
+    dist = (lap - 2 * 6 - 1 * 4) / (1 / vmg_up + 1 / vmg_dn)                # ~2 tacks + 1 gybe of losses
+    ox, oy = (observed["lon"] - LON0) * KX, (observed["lat"] - LAT0) * KY
+    bearing = float(np.degrees(np.arctan2(ox - gx, oy - gy)) % 360)
+    x, y = gx + dist * np.sin(np.radians(bearing)), gy + dist * np.cos(np.radians(bearing))
+    lat, lon = to_latlon(x, y)
+    return {"id": "mark2", "lat": lat, "lon": lon, "n_boats": len(laps), "spread_m": round(float(np.std(laps) * vmg_dn)),
+            "method": "timing: fleet's real gate-to-gate time with measured VMGs (roundings hidden by tracker gaps)",
+            "role": "windward mark 2 (top of the second beat from the gate)", "uncertain": True,
+            "gate_to_gate_s_median": round(lap), "distance_from_gate_m": round(dist), "bearing_from_gate_deg": round(bearing),
+            "where_data_stopped": {"lat": observed["lat"], "lon": observed["lon"], "n_boats": observed["n_boats"]}}
+
+
 def main(date: str = "2026-07-19"):
     probe = json.loads(PROBE.read_text())
     sess = next(s["assignment"] for s in probe["events"][0]["matching_sessions"] if s["assignment"]["date"] == date)
@@ -185,7 +223,8 @@ def main(date: str = "2026-07-19"):
         if mark1:
             mark1.update(id="mark1", role="windward mark 1 (end of the first beat)", uncertain=mark1["n_boats"] < MIN_CONFIDENT)
         # ---- follow each boat's sequence of legs: first beat -> (reach) -> run -> beat 2 -> finish
-        cand = {"mark2": [], "gate3": [], "finish": []}
+        cand = {"mark2": [], "gate3": [], "finish": [], "waiting_area": []}
+        patterns = collections.Counter()
         by_boat: dict[int, list] = {}
         for l in in_race:
             by_boat.setdefault(id(l["boat_df"]), []).append(l)
@@ -196,14 +235,21 @@ def main(date: str = "2026-07-19"):
                        and abs((l["seg"].index[0] - t0).total_seconds()) <= 180), None)
             if fb is None:
                 continue
-            # course seen in the data: beat 1 (~13 min) -> run -> beat 2 (~5 min) -> run -> beat 3 (~4 min) to finish.
+            patterns[" ".join("U" if l["type"] == "upwind" else "D" for l in seq[fb:])] += 1
+            # course seen in race 1: beat -> run -> gate -> beat 2 -> run -> gate -> short reach -> finish.
             # Tracker gaps hide almost every rounding at the top of beat 1, so a reach / offset mark there is invisible.
             runs = [k for k in range(fb + 1, len(seq)) if seq[k]["type"] == "downwind"]
-            for k in runs:                                                    # gate = bottom of every run
+            for k in runs:
                 rs = seq[k]["seg"]
                 bot = leg_top(rs, (circmean(rs.twd) + 180) % 360)
-                if (rs.index[-1] - bot.name).total_seconds() <= 60 and seq[k]["gap_after"] <= 40:
-                    cand["gate3"].append((bot.x, bot.y))
+                if not ((rs.index[-1] - bot.name).total_seconds() <= 60 and seq[k]["gap_after"] <= 40):
+                    continue
+                followed_by_beat = any(seq[j]["type"] == "upwind" for j in range(k + 1, len(seq)))
+                after_beat2 = sum(1 for j in range(fb, k) if seq[j]["type"] == "upwind") >= 2
+                if followed_by_beat:
+                    cand["gate3"].append((bot.x, bot.y))                     # gate = bottom of a run before a beat
+                elif after_beat2:
+                    cand["finish"].append((bot.x, bot.y))                    # finish = end of the last run
             if runs:
                 b2 = next((k for k in range(runs[0] + 1, len(seq)) if seq[k]["type"] == "upwind"), None)
                 if b2 is not None:                                            # mark 2 = top of the second beat
@@ -211,13 +257,13 @@ def main(date: str = "2026-07-19"):
                     top2 = leg_top(s2, circmean(s2.twd))
                     clean = (s2.index[-1] - top2.name).total_seconds() <= 60 and seq[b2]["gap_after"] <= 40
                     cand["mark2"].append((top2.x, top2.y, clean))
-            # finish = start of the first sustained slow period (>= 2 min) after the last racing leg
+            # waiting area = start of the first sustained slow period (>= 2 min) after the last racing leg
             after = b[(b.index > seq[-1]["seg"].index[-1]) & (b.index <= t1)]
             slow = (after.speed_kn < 2.5).astype(int)
             run_len = slow.groupby((slow != slow.shift()).cumsum()).transform("sum") * slow
             stop = after[run_len >= 12]                                       # 12 x 10 s = 2 min
             if len(stop) and (stop.index[0] - t0).total_seconds() >= 25 * 60:
-                cand["finish"].append((stop.iloc[0].x, stop.iloc[0].y))
+                cand["waiting_area"].append((stop.iloc[0].x, stop.iloc[0].y))
 
         def best(role, label):
             groups = cluster(np.array(cand[role])) if cand[role] else []
@@ -226,7 +272,8 @@ def main(date: str = "2026-07-19"):
             m = mark_record(groups[0], role)
             m.update(role=label, uncertain=m["n_boats"] < MIN_CONFIDENT)
             return m
-        finish = best("finish", "finish area (where boats stop racing; approximate)")
+        finish = best("finish", "finish (end of the last run: where boats stop going downwind)")
+        waiting = best("waiting_area", "where boats wait after finishing (not a buoy)")
         gate = []
         g3 = cluster(np.array(cand["gate3"])) if cand["gate3"] else []
         # mark 2: clean second-beat tops, else the leading quarter of all second-beat tops (as for mark 1),
@@ -247,6 +294,10 @@ def main(date: str = "2026-07-19"):
             if mark2:
                 mark2.update(role="windward mark 2 (top of the second, shorter beat from the gate)",
                              uncertain=mark2["n_boats"] < MIN_CONFIDENT or mark2["spread_m"] > 100)
+                if mark2.get("method", "").startswith("leading quarter"):
+                    tm = mark2_from_timing(boats, t0, (gx, gy), mark2, twd_gun)
+                    if tm:
+                        mark2 = tm
         if g3:
             parts = split_gate(g3[0], twd_gun)
             names = ["gate3_left", "gate3_right"] if len(parts) == 2 else ["gate3"]
@@ -254,13 +305,36 @@ def main(date: str = "2026-07-19"):
                 parts.sort(key=lambda pp: float(np.median(pp, axis=0) @ unit(twd_gun + 90)))
             for nm, pp in zip(names, parts):
                 m = mark_record(pp, nm)
-                m.update(role="leeward gate (bottom of the first run)" if len(parts) == 2 else "leeward mark (bottom of the first run)",
+                m.update(role="leeward gate (bottom of a run that is followed by a beat)" if len(parts) == 2 else "leeward mark (bottom of a run that is followed by a beat)",
                          uncertain=m["n_boats"] < MIN_CONFIDENT)
                 gate.append(m)
         buoys = (2 if sl else 0) + sum(1 for m in (mark1, mark2) if m) + len(gate) + (1 if finish else 0)
+        # leg order from the fleet's most common leg pattern (U = beat, D = run); runs end at the gate,
+        # the last run goes on to the finish (race 1: a short reach from the gate)
+        # longest leg sequence that >= 25 % of boats share as a prefix (longer patterns include post-race sailing,
+        # shorter ones are cut by tracker gaps)
+        top_pattern, n_b = [], sum(patterns.values())
+        for L in range(max((len(p.split()) for p in patterns), default=0), 0, -1):
+            pref = collections.Counter()
+            for pat, n in patterns.items():
+                if len(pat.split()) >= L:
+                    pref[" ".join(pat.split()[:L])] += n
+            if pref and pref.most_common(1)[0][1] >= 0.25 * n_b:
+                top_pattern = pref.most_common(1)[0][0].split()
+                break
+        leg_list, n_up = [], 0
+        gate_id = gate[0]["id"] if gate else None
+        for k, kind in enumerate(top_pattern):
+            if kind == "U":
+                n_up += 1
+                leg_list.append({"type": "beat", "to": "mark1" if n_up == 1 else "mark2"})
+            else:
+                leg_list.append({"type": "run", "to": gate_id})
+        if leg_list and leg_list[-1]["type"] == "run" and finish:
+            leg_list.append({"type": "reach", "to": "finish"})
         races.append({"race": i + 1, "gun_local": f"{t0:%H:%M:%S}", "start_line": sl, "mark1": mark1, "mark2": mark2,
-                      "gate3": gate, "finish": finish, "buoys_found": buoys,
-                      "legs_seen": "beat 1 (~13 min) -> run (~9) -> beat 2 to mark 2 (~5) -> run (~6) -> beat 3 to finish (~4)",
+                      "gate3": gate, "finish": finish, "waiting_area": waiting, "buoys_found": buoys,
+                      "legs": leg_list, "leg_patterns_seen": dict(patterns.most_common(6)),
                       "note": "start line = 2 buoys (committee boat + pin; which is which is unknown). "
                               "'uncertain' = fewer than %d boats rounded cleanly (tracker gaps)." % MIN_CONFIDENT})
 
