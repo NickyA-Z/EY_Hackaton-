@@ -1,13 +1,13 @@
 {
  "pack_version": 2,
- "created": "2026-11-06 09:21",
+ "created": "2026-11-06 11:06",
  "context": {
   "venue": "LA28 sailing - Port of LA boat course (outside San Pedro breakwater)",
   "race_day": "2026-07-19",
   "race_window_local": "13:00-17:00",
   "boat_class": "ILCA 7",
   "mode": "backtest: only information available on the race-day morning",
-  "fingerprint": "ce449ed1288f",
+  "fingerprint": "74e986bbdcbd",
   "climatology_years": [
    2021,
    2022,

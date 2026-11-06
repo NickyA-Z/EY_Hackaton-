@@ -255,8 +255,8 @@ Edit that text to change what the AI is told.
 - **The course is derived from the boats' roundings.** Per race it gives 5–6 buoys:
   - start ends (2)
   - mark 1: race 1 ±38 m; races 2–3 ±100–140 m
-  - mark 2: uncertain, 3–6 boats
+  - mark 2: race 1 estimated from timing (32 boats' gate-to-gate time), uncertain
   - gate: 10–20 boats
-  - finish area: races 1–2 only
+  - finish: end of the last run (race 1: 7 boats, ±66 m), a short reach from the gate
 
-  The features use only the start line and mark 1. Replace `course/<date>.json` when official data arrives.
+  The features use only the start line and mark 1; the simulator (evaluation only) uses the whole course. Replace `course/<date>.json` when official data arrives.

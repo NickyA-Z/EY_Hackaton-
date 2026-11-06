@@ -35,36 +35,82 @@
    },
    "mark2": {
     "id": "mark2",
-    "lat": 33.682431,
-    "lon": -118.276472,
-    "n_boats": 6,
-    "spread_m": 101,
-    "method": "leading quarter of second-beat tops (tracker gaps at the mark)",
-    "role": "windward mark 2 (top of the second, shorter beat from the gate)",
-    "uncertain": true
+    "lat": 33.683617,
+    "lon": -118.280058,
+    "n_boats": 32,
+    "spread_m": 110,
+    "method": "timing: fleet's real gate-to-gate time with measured VMGs (roundings hidden by tracker gaps)",
+    "role": "windward mark 2 (top of the second beat from the gate)",
+    "uncertain": true,
+    "gate_to_gate_s_median": 990,
+    "distance_from_gate_m": 1066,
+    "bearing_from_gate_deg": 292,
+    "where_data_stopped": {
+     "lat": 33.682431,
+     "lon": -118.276472,
+     "n_boats": 6
+    }
    },
    "gate3": [
     {
      "id": "gate3",
-     "lat": 33.68009,
-     "lon": -118.269333,
-     "n_boats": 20,
-     "spread_m": 37,
-     "role": "leeward mark (bottom of the first run)",
+     "lat": 33.680074,
+     "lon": -118.269349,
+     "n_boats": 17,
+     "spread_m": 32,
+     "role": "leeward mark (bottom of a run that is followed by a beat)",
      "uncertain": false
     }
    ],
    "finish": {
     "id": "finish",
+    "lat": 33.683965,
+    "lon": -118.26797,
+    "n_boats": 7,
+    "spread_m": 66,
+    "role": "finish (end of the last run: where boats stop going downwind)",
+    "uncertain": false
+   },
+   "waiting_area": {
+    "id": "waiting_area",
     "lat": 33.689003,
     "lon": -118.2684,
     "n_boats": 9,
     "spread_m": 89,
-    "role": "finish area (where boats stop racing; approximate)",
+    "role": "where boats wait after finishing (not a buoy)",
     "uncertain": false
    },
    "buoys_found": 6,
-   "legs_seen": "beat 1 (~13 min) -> run (~9) -> beat 2 to mark 2 (~5) -> run (~6) -> beat 3 to finish (~4)",
+   "legs": [
+    {
+     "type": "beat",
+     "to": "mark1"
+    },
+    {
+     "type": "run",
+     "to": "gate3"
+    },
+    {
+     "type": "beat",
+     "to": "mark2"
+    },
+    {
+     "type": "run",
+     "to": "gate3"
+    },
+    {
+     "type": "reach",
+     "to": "finish"
+    }
+   ],
+   "leg_patterns_seen": {
+    "U D U": 7,
+    "U D U D": 7,
+    "U D U D U": 6,
+    "U D D U": 4,
+    "U D D": 4,
+    "U U D": 4
+   },
    "note": "start line = 2 buoys (committee boat + pin; which is which is unknown). 'uncertain' = fewer than 5 boats rounded cleanly (tracker gaps)."
   },
   {
@@ -97,36 +143,66 @@
    },
    "mark2": {
     "id": "mark2",
-    "lat": 33.682697,
-    "lon": -118.277862,
-    "n_boats": 4,
-    "spread_m": 141,
-    "method": "leading quarter of second-beat tops (tracker gaps at the mark)",
-    "role": "windward mark 2 (top of the second, shorter beat from the gate)",
-    "uncertain": true
+    "lat": 33.683584,
+    "lon": -118.280655,
+    "n_boats": 11,
+    "spread_m": 163,
+    "method": "timing: fleet's real gate-to-gate time with measured VMGs (roundings hidden by tracker gaps)",
+    "role": "windward mark 2 (top of the second beat from the gate)",
+    "uncertain": true,
+    "gate_to_gate_s_median": 990,
+    "distance_from_gate_m": 1135,
+    "bearing_from_gate_deg": 291,
+    "where_data_stopped": {
+     "lat": 33.682697,
+     "lon": -118.277862,
+     "n_boats": 4
+    }
    },
    "gate3": [
     {
      "id": "gate3",
-     "lat": 33.679896,
-     "lon": -118.269161,
-     "n_boats": 10,
-     "spread_m": 24,
-     "role": "leeward mark (bottom of the first run)",
+     "lat": 33.679945,
+     "lon": -118.269199,
+     "n_boats": 6,
+     "spread_m": 20,
+     "role": "leeward mark (bottom of a run that is followed by a beat)",
      "uncertain": false
     }
    ],
-   "finish": {
-    "id": "finish",
+   "finish": null,
+   "waiting_area": {
+    "id": "waiting_area",
     "lat": 33.685044,
     "lon": -118.268516,
     "n_boats": 3,
     "spread_m": 20,
-    "role": "finish area (where boats stop racing; approximate)",
+    "role": "where boats wait after finishing (not a buoy)",
     "uncertain": true
    },
-   "buoys_found": 6,
-   "legs_seen": "beat 1 (~13 min) -> run (~9) -> beat 2 to mark 2 (~5) -> run (~6) -> beat 3 to finish (~4)",
+   "buoys_found": 5,
+   "legs": [
+    {
+     "type": "beat",
+     "to": "mark1"
+    },
+    {
+     "type": "run",
+     "to": "gate3"
+    },
+    {
+     "type": "beat",
+     "to": "mark2"
+    }
+   ],
+   "leg_patterns_seen": {
+    "U D U": 8,
+    "U D U D U": 4,
+    "U D": 4,
+    "U D U D U U": 2,
+    "U D U U": 2,
+    "U U": 2
+   },
    "note": "start line = 2 buoys (committee boat + pin; which is which is unknown). 'uncertain' = fewer than 5 boats rounded cleanly (tracker gaps)."
   },
   {
@@ -159,28 +235,62 @@
    },
    "mark2": {
     "id": "mark2",
-    "lat": 33.683998,
-    "lon": -118.277154,
-    "n_boats": 3,
-    "spread_m": 68,
-    "method": "leading quarter of second-beat tops (tracker gaps at the mark)",
-    "role": "windward mark 2 (top of the second, shorter beat from the gate)",
-    "uncertain": true
+    "lat": 33.684933,
+    "lon": -118.278891,
+    "n_boats": 28,
+    "spread_m": 147,
+    "method": "timing: fleet's real gate-to-gate time with measured VMGs (roundings hidden by tracker gaps)",
+    "role": "windward mark 2 (top of the second beat from the gate)",
+    "uncertain": true,
+    "gate_to_gate_s_median": 1000,
+    "distance_from_gate_m": 1007,
+    "bearing_from_gate_deg": 303,
+    "where_data_stopped": {
+     "lat": 33.683998,
+     "lon": -118.277154,
+     "n_boats": 3
+    }
    },
    "gate3": [
     {
      "id": "gate3",
-     "lat": 33.680043,
-     "lon": -118.269687,
-     "n_boats": 12,
-     "spread_m": 43,
-     "role": "leeward mark (bottom of the first run)",
+     "lat": 33.680009,
+     "lon": -118.269743,
+     "n_boats": 11,
+     "spread_m": 57,
+     "role": "leeward mark (bottom of a run that is followed by a beat)",
      "uncertain": false
     }
    ],
    "finish": null,
+   "waiting_area": null,
    "buoys_found": 5,
-   "legs_seen": "beat 1 (~13 min) -> run (~9) -> beat 2 to mark 2 (~5) -> run (~6) -> beat 3 to finish (~4)",
+   "legs": [
+    {
+     "type": "beat",
+     "to": "mark1"
+    },
+    {
+     "type": "run",
+     "to": "gate3"
+    },
+    {
+     "type": "beat",
+     "to": "mark2"
+    },
+    {
+     "type": "run",
+     "to": "gate3"
+    }
+   ],
+   "leg_patterns_seen": {
+    "U D U D": 9,
+    "U U D": 7,
+    "U D U D D": 3,
+    "U D D D": 2,
+    "U D": 1,
+    "U": 1
+   },
    "note": "start line = 2 buoys (committee boat + pin; which is which is unknown). 'uncertain' = fewer than 5 boats rounded cleanly (tracker gaps)."
   }
  ]

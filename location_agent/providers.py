@@ -18,7 +18,7 @@ import re
 import time
 from pathlib import Path
 
-from .prompt import OUTPUT_SCHEMA, SYSTEM_PROMPT, schema_instruction, user_message
+from .prompt import OUTPUT_SCHEMA, SYSTEM_PROMPT, compact_schema, schema_instruction, user_message
 
 ENV_FILE = Path(__file__).resolve().parent / ".env"
 
@@ -71,7 +71,7 @@ def _anthropic(cfg: dict, pack: dict):
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message(pack)}],
         output_config={"effort": cfg["LLM_EFFORT"],
-                       "format": {"type": "json_schema", "schema": OUTPUT_SCHEMA}},
+                       "format": {"type": "json_schema", "schema": compact_schema()}},
         # server-side refusal fallback: if the model declines, the API re-runs the request on
         # Anthropic's recommended fallback model inside the same call
         betas=["server-side-fallback-2026-07-01"],
@@ -216,7 +216,7 @@ def _mock(cfg: dict, pack: dict):
             "start": {"line_position": 0.2 if adv and adv > 0 else 0.5, "first_tack": "starboard", "hold_first_tack_s": 60},
             "upwind": {"target_side": "right" if veer and veer > 0 else "left", "max_lateral_m": 300,
                        "tack_on_header_deg": 8, "header_hold_s": 20, "layline_overstand_m": 30},
-            "downwind": {"target_side": "middle"},
+            "downwind": {"target_side": "middle", "max_lateral_m": 250, "gybe_on_lift_deg": 10},
             "triggers": [{"condition": "wind_speed_below_kn", "value": 7, "then_target_side": "middle",
                           "then_tack_on_header_deg": 6, "why": "mock: light air, play the shifts"}],
         },
