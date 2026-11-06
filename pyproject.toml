@@ -121,7 +121,7 @@ unfixable = []
 [tool.ruff.lint.isort]
 combine-as-imports = true
 force-single-line = false
-known-first-party = ["src"]  # ✅ change if needed
+known-first-party = ["backend", "frontend"]
 
 # ---- Naming ----
 [tool.ruff.lint.pep8-naming]
@@ -139,7 +139,8 @@ max-branches = 12
 max-statements = 50
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["src"]
+pythonpath = ["src"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
 markers = [
