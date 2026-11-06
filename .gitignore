@@ -219,11 +219,18 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# RAG vector store (rebuilt from rag-system/ by `python -m ey_hackathon.rag index`)
+# RAG vector store (rebuilt from data/rag/ by `python -m backend.rag index`)
 .chroma/
 
 # Personal notes (not shared)
 メモ_*.md
 
 # Inbox uploads are local and untrusted
-src/conditions_June_2026/data/inbox/
+data/weather/inbox/
+
+# Geodata: intermediate downloads are re-created by `python -m backend.geodata.run`
+data/geo/*/raw/
+*.part
+
+# macOS Finder metadata
+.DS_Store
