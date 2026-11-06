@@ -99,7 +99,7 @@ def main():
         pack, pack_path, status = load_or_build(date.fromisoformat(a.date), a.area, w, backtest=not a.no_backtest,
                                                 rebuild=a.rebuild)
     out_dir = pack_path.parent
-    print(f"Features: {status} ({pack_path.resolve().relative_to(paths.ROOT)}, fingerprint {pack['context'].get('fingerprint')})")
+    print(f"Features: {status} ({paths.shown(pack_path)}, fingerprint {pack['context'].get('fingerprint')})")
 
     # RAG insights: text the RAG produced from the user's inputs; attached now, never stored in the feature pack
     tf = paths.LOCATION_AGENT_INPUT_DIR / f"{pack['context']['race_day']}_rag_insights.txt"
@@ -131,7 +131,7 @@ def main():
     print(f"Checks: schema errors={len(result['checks']['schema_errors'])}; cited numbers={tr['cited_numbers']} "
           f"{tr['by_status']}")
     print(f"Run: {meta}")
-    print(f"-> {jf.resolve().relative_to(paths.ROOT)}" + (f"\n-> {mf.resolve().relative_to(paths.ROOT)}" if mf.exists() else ""))
+    print(f"-> {paths.shown(jf)}" + (f"\n-> {paths.shown(mf)}" if mf.exists() else ""))
 
 
 if __name__ == "__main__":

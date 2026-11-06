@@ -223,6 +223,27 @@ def markdown(res: dict) -> str:
     return "\n".join(L) + "\n"
 
 
+def evaluate_strategy(date: str, area: str, strategy: dict, strategy_file: str, wanted: set[int], out_dir: Path) -> dict:
+    """Sail ``strategy["answer"]["action_plan"]`` over the wanted races of ``date`` and compare with the real fleet.
+    Writes evaluation.json/md and sim/ into ``out_dir`` and returns the result. Raises ValueError for an old strategy
+    without an action plan. Used by the CLI below and by the LangGraph plan pipeline (backend.ai.plan_graph)."""
+    answer = strategy["answer"]
+    if "action_plan" not in answer:
+        raise ValueError(f"{strategy_file} has no action_plan (made before the action-plan schema) - re-run the strategist.")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    probe = json.loads((sim.TRACK_DIR / "probe_report.json").read_text())
+    sess = next(s["assignment"] for s in probe["events"][0]["matching_sessions"] if s["assignment"]["date"] == date)
+    fleet = sim.load_fleet(sess["session_id"])
+    wind = sim.truth_wind(fleet)
+    races = [evaluate_race(fleet, wind, date, i, rc["time_range"]["start"], answer["action_plan"], answer, out_dir)
+             for i, rc in enumerate(sess["races"], 1) if i in wanted]
+    res = {"date": date, "area": area, "strategy_file": strategy_file, "model": strategy["run"].get("served_by"),
+           "created": datetime.now().strftime("%Y-%m-%d %H:%M"), "races": races}
+    (out_dir / "evaluation.json").write_text(json.dumps(res, indent=1, default=str), encoding="utf-8")
+    (out_dir / "evaluation.md").write_text(markdown(res), encoding="utf-8")
+    return res
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--date", default="2026-07-19")
@@ -245,20 +266,11 @@ def main():
         subprocess.run(cmd, check=True, cwd=paths.ROOT, env=env)
     sf = Path(a.strategy) if a.strategy else max(out_dir.glob("strategy_*.json"), key=lambda f: f.stat().st_mtime)
     st = json.loads(sf.read_text(encoding="utf-8"))
-    answer = st["answer"]
-    if "action_plan" not in answer:
-        sys.exit(f"{sf.name} has no action_plan (made before the action-plan schema) - re-run the strategist.")
-    probe = json.loads((sim.TRACK_DIR / "probe_report.json").read_text())
-    sess = next(s["assignment"] for s in probe["events"][0]["matching_sessions"] if s["assignment"]["date"] == a.date)
-    fleet = sim.load_fleet(sess["session_id"])
-    wind = sim.truth_wind(fleet)
-    wanted = {int(x) for x in a.races.split(",")}
-    races = [evaluate_race(fleet, wind, a.date, i, rc["time_range"]["start"], answer["action_plan"], answer, out_dir)
-             for i, rc in enumerate(sess["races"], 1) if i in wanted]
-    res = {"date": a.date, "area": a.area, "strategy_file": sf.name, "model": st["run"].get("served_by"),
-           "created": datetime.now().strftime("%Y-%m-%d %H:%M"), "races": races}
-    (out_dir / "evaluation.json").write_text(json.dumps(res, indent=1, default=str), encoding="utf-8")
-    (out_dir / "evaluation.md").write_text(markdown(res), encoding="utf-8")
+    try:
+        res = evaluate_strategy(a.date, a.area, st, sf.name, {int(x) for x in a.races.split(",")}, out_dir)
+    except ValueError as error:
+        sys.exit(str(error))
+    races = res["races"]
     log = OUT_ROOT / "iterations.md"
     head = ("# Iteration log\n\n| When | Strategy | Note | Races | Side ✓ | Start ✓ | Shifts ✓ | Our finish | "
             "Race winner finish | Rank vs real finishers |\n|---|---|---|---|---|---|---|---|---|---|\n")
@@ -271,7 +283,7 @@ def main():
                  + "/".join(str((x["full_race"]["race_winner"] or {}).get("finish")) for x in races) + " | "
                  + "/".join(str(x["full_race"]["agent"]["indicative_rank_vs_real_finishers"]) for x in races) + " |\n")
     print(markdown(res))
-    print("->", (out_dir / "evaluation.md").relative_to(paths.ROOT))
+    print("->", paths.shown(out_dir / "evaluation.md"))
 
 
 if __name__ == "__main__":

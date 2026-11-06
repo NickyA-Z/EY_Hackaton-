@@ -234,3 +234,6 @@ data/geo/*/raw/
 
 # macOS Finder metadata
 .DS_Store
+
+# LangGraph plan runs (backend.ai.plan_graph): one folder per run, regenerable
+data/location_agent/runs/

@@ -50,4 +50,11 @@ LOCATION_AGENT_INPUT_DIR = LOCATION_AGENT_DIR / "inputs"       # <date>_rag_insi
 LOCATION_AGENT_OUTPUT_DIR = LOCATION_AGENT_DIR / "output"      # <date>_<area>/ briefing packs, strategies, evaluations
 LOCATION_AGENT_CONDITIONS_FILE = LOCATION_AGENT_DIR / "conditions_july.parquet"   # built by location_agent.ingest
 LOCATION_AGENT_RAW_DIR = LOCATION_AGENT_DIR / "raw"            # July downloads: hrrr*, noaa_coops, open_meteo_marine
+LOCATION_AGENT_RUNS_DIR = LOCATION_AGENT_DIR / "runs"          # one folder per LangGraph plan run (git-ignored), created on demand
 LOCATION_AGENT_GPS_RESULTS_DIR = LOCATION_AGENT_DIR / "gps_results"   # wind, legs, marks from the race GPS (gps_analysis)
+
+
+def shown(path: Path) -> str:
+    """A path for messages: relative to the repo when it is inside it, otherwise absolute (never raises)."""
+    path = Path(path).resolve()
+    return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)

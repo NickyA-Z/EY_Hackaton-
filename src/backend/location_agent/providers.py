@@ -1,7 +1,7 @@
 """
 Step 3b - swappable AI providers. Switch model/provider by editing the repo-root .env only.
 
-  LLM_PROVIDER=anthropic           Claude via the official Anthropic SDK
+  LLM_PROVIDER=anthropic           Claude via LangChain (langchain-anthropic)
   LLM_PROVIDER=openai_compatible   any server with POST {LLM_BASE_URL}/chat/completions
                                    (OpenRouter, Ollama, vLLM, LM Studio, TGI ... e.g. behind an ngrok URL);
                                    LLM_EXTRA_BODY adds provider-specific JSON fields, LLM_JSON_MODE=false
@@ -59,35 +59,43 @@ def _extract_json(text: str) -> dict:
         raise
 
 
-# ------------------------------------------------------------------ Claude (Anthropic SDK)
-def _anthropic(cfg: dict, pack: dict):
-    import anthropic
+# ------------------------------------------------------------------ Claude (LangChain)
+def _anthropic(cfg: dict, pack: dict, model=None):
+    """Claude through LangChain's ChatAnthropic. The request is the one the raw SDK call used to send: strict
+    JSON-schema output, reasoning effort, and the server-side refusal fallback (beta). ``model`` replaces the real
+    chat model (tests pass a scripted one)."""
+    from langchain_core.messages import HumanMessage, SystemMessage
 
-    # Uses LLM_API_KEY if given, else the SDK's normal credential chain (ANTHROPIC_API_KEY, ant auth profile, ...)
-    client = anthropic.Anthropic(api_key=cfg["LLM_API_KEY"]) if cfg.get("LLM_API_KEY") else anthropic.Anthropic()
+    from backend.ai.models import text_of
+
+    if model is None:
+        from langchain_anthropic import ChatAnthropic
+
+        # LLM_API_KEY, else ANTHROPIC_API_KEY from the repo-root .env (the key the dashboard's AI layer uses), else
+        # ANTHROPIC_API_KEY in the shell
+        api_key = cfg.get("LLM_API_KEY") or cfg.get("ANTHROPIC_API_KEY")
+        model = ChatAnthropic(
+            model=cfg["LLM_MODEL"], max_tokens=int(cfg["LLM_MAX_TOKENS"]), **({"api_key": api_key} if api_key else {}),
+            output_config={"effort": cfg["LLM_EFFORT"], "format": {"type": "json_schema", "schema": compact_schema()}},
+            # server-side refusal fallback: if the model declines, the API re-runs the request on Anthropic's
+            # recommended fallback model inside the same call
+            betas=["server-side-fallback-2026-07-01"], model_kwargs={"fallbacks": "default"})
     t0 = time.time()
-    response = client.beta.messages.create(
-        model=cfg["LLM_MODEL"],
-        max_tokens=int(cfg["LLM_MAX_TOKENS"]),
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_message(pack)}],
-        output_config={"effort": cfg["LLM_EFFORT"],
-                       "format": {"type": "json_schema", "schema": compact_schema()}},
-        # server-side refusal fallback: if the model declines, the API re-runs the request on
-        # Anthropic's recommended fallback model inside the same call
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-    )
-    meta = {"provider": "anthropic", "requested_model": cfg["LLM_MODEL"], "served_by": response.model,
-            "stop_reason": response.stop_reason, "seconds": round(time.time() - t0, 1),
-            "input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens,
-            "request_id": getattr(response, "_request_id", None)}
-    if response.stop_reason == "refusal":
-        details = getattr(response, "stop_details", None)
-        raise RuntimeError(f"Model refused: {getattr(details, 'category', None)} {getattr(details, 'explanation', '')}")
-    if response.stop_reason == "max_tokens":
+    reply = model.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=user_message(pack))])
+    info = reply.response_metadata or {}
+    usage = reply.usage_metadata or {}
+    stop = info.get("stop_reason")
+    meta = {"provider": "anthropic", "requested_model": cfg["LLM_MODEL"], "served_by": info.get("model_name") or info.get("model"),
+            "stop_reason": stop, "seconds": round(time.time() - t0, 1),
+            "input_tokens": usage.get("input_tokens"), "output_tokens": usage.get("output_tokens"),
+            "request_id": info.get("id")}
+    if stop == "refusal":
+        raise RuntimeError(f"Model refused: {info.get('stop_details')}")
+    if stop == "max_tokens":
         raise RuntimeError("Answer cut off at max_tokens; raise LLM_MAX_TOKENS")
-    text = next(b.text for b in response.content if b.type == "text")
+    text = text_of(reply.content)
+    if not text.strip():
+        raise RuntimeError(f"Empty answer from the model (stop_reason={stop}); raise LLM_MAX_TOKENS")
     return json.loads(text), meta
 
 
@@ -231,8 +239,9 @@ def _mock(cfg: dict, pack: dict):
 PROVIDERS = {"anthropic": _anthropic, "openai_compatible": _openai_compatible, "mock": _mock}
 
 
-def generate(pack: dict, cfg: dict):
+def generate(pack: dict, cfg: dict, model=None):
+    """(answer, meta). ``model``: a LangChain chat model to use instead of the configured one (anthropic only)."""
     p = cfg["LLM_PROVIDER"]
     if p not in PROVIDERS:
         raise ValueError(f"Unknown LLM_PROVIDER '{p}'. Use one of {list(PROVIDERS)}")
-    return PROVIDERS[p](cfg, pack)
+    return PROVIDERS[p](cfg, pack, model) if (model is not None and p == "anthropic") else PROVIDERS[p](cfg, pack)
