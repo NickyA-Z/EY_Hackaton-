@@ -28,6 +28,7 @@ AGENT_VIEWS = {
     "sailor_brief": "Sailor brief",
     "overview": "Strategy overview",
     "speed": "Speed forecast",
+    "previous": "Previous strategy",
     "live": "Live",
 }
 

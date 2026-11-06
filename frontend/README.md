@@ -63,6 +63,37 @@ Live and Coach brief use the same spot. Results stay until the next **Load**;
 the "Loaded: …" line shows which selection they belong to. Sailing areas are read
 only from the local geodata JSON.
 
+## Previous strategy (3D)
+
+The **Previous strategy** tab replays the first upwind leg of the three ILCA 7 races of
+19 July 2026 (San Pedro OCR, SailSync GPS) as a 3D space-time cube: the horizontal plane
+is the course and the vertical axis is time since the start gun, so each boat is a ribbon
+climbing through the cube. Drag to rotate, scroll to zoom, hover a ribbon for the boat.
+
+- **Information on the map** picks how much is drawn: *Tracks only*, *+ Weather* or
+  *Full briefing*, or any mix of the individual layers (ground shadow, depth, time plane,
+  start and mark, boat positions, three wind arrows, conditions table, left/right
+  approach, strategy documents).
+- **Colour by** finishing position, speed, or side of the course (left/right of the
+  straight start→mark line, strong = aggressive).
+- The **race clock** slider moves the teal time plane; wind arrows sit on that plane and
+  show the wind at that moment.
+
+What the data can and cannot do:
+
+- GPS exists for 42-44 of the 61-62 boats per race. Holes in a track stay holes. One boat in
+  race 2 (1,786 s on a 440 s median) is cut at 1.5 × the median leg so the time axis stays readable.
+- All weather sources are 8-11 km from the course (Open-Meteo model cell, NOAA piers F, J, S,
+  NDBC 46222) and hourly or 10-minute. They are regional values, not a wind field over the
+  race area. SailSync's own wind has a direction (265°) and no speed.
+- The strategy documents in `rag-system/` are synthetic. The tab shows which ones the
+  conditions trigger and which inputs the rules could not check; it does not validate them.
+- Depth is shaded over 0-30 m only; the race area is deeper, so the layer shows the
+  breakwater and coast, not the seabed under the fleet.
+
+Code: `frontend/previous_strategy_view.py` (scene and panels), `../backend/previous_strategy.py`
+(data, no Streamlit), tests in `../backend/tests/test_previous_strategy.py`.
+
 ## Regional map layers
 
 | Layer | Display | Open-Meteo variables |
@@ -103,6 +134,7 @@ navigation.
 | --- | --- |
 | `frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
 | `frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
+| `frontend/previous_strategy_view.py` | Previous strategy tab: 3D time-cube scene (pydeck), layer picker, conditions, left/right and strategy-document panels |
 | `frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
 | `../backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |
 | `../backend/retrieval/marine_api.py` | Open-Meteo point and regional-grid requests |
