@@ -1,8 +1,8 @@
 boat,leg,type,to,start_s,at_mark_s,within_80m_s,time_s,tacks,gybes,turns,data_coverage_pct
-OUR BOAT (sim),1,beat,mark1,0.0,760.0,712.0,760.0,5.0,,,
-OUR BOAT (sim),2,run,gate3,760.0,1298.0,1278.0,538.0,,2.0,,
-OUR BOAT (sim),3,beat,mark2,1298.0,1880.0,1832.0,582.0,4.0,,,
-OUR BOAT (sim),4,run,gate3,1880.0,2234.0,2214.0,354.0,,1.0,,
+OUR BOAT (sim),1,beat,mark1,0.0,758.0,708.0,758.0,5.0,,,
+OUR BOAT (sim),2,run,gate3,758.0,1302.0,1282.0,544.0,,2.0,,
+OUR BOAT (sim),3,beat,mark2,1302.0,1882.0,1834.0,580.0,4.0,,,
+OUR BOAT (sim),4,run,gate3,1882.0,2234.0,2212.0,352.0,,1.0,,
 OUR BOAT (sim),5,reach,finish,2234.0,2396.0,2372.0,162.0,,,0.0,
 Matt Wearn (AUS) (real),1,beat,mark1,,,679.0,,2.0,,,91.0
 Matt Wearn (AUS) (real),2,run,gate3,,,1259.0,,,1.0,,24.0
@@ -10,12 +10,12 @@ Matt Wearn (AUS) (real),3,beat,mark2,,,,,1.0,,,36.0
 Matt Wearn (AUS) (real),4,run,gate3,,,2209.0,,,1.0,,33.0
 Matt Wearn (AUS) (real),5,reach,finish,,,2319.0,,,,0.0,45.0
 Elliot Hanson (GBR) (real),1,beat,mark1,,,719.0,,4.0,,,82.0
-Elliot Hanson (GBR) (real),2,run,gate3,,,1259.0,,,1.0,,20.0
-Elliot Hanson (GBR) (real),3,beat,mark2,,,,,1.0,,,38.0
-Elliot Hanson (GBR) (real),4,run,gate3,,,2219.0,,,5.0,,62.0
-Elliot Hanson (GBR) (real),5,reach,finish,,,2349.0,,,,0.0,46.0
+Elliot Hanson (GBR) (real),2,run,gate3,,,,,,,,19.0
+Elliot Hanson (GBR) (real),3,beat,mark2,,,,,0.0,,,18.0
+Elliot Hanson (GBR) (real),4,run,gate3,,,1259.0,,,1.0,,24.0
+Elliot Hanson (GBR) (real),5,reach,finish,,,2349.0,,,,0.0,42.0
 Duko Bos (NED) (real),1,beat,mark1,,,709.0,,2.0,,,94.0
-Duko Bos (NED) (real),2,run,gate3,,,,,,1.0,,11.0
+Duko Bos (NED) (real),2,run,gate3,,,,,,0.0,,11.0
 Duko Bos (NED) (real),3,beat,mark2,,,,,0.0,,,9.0
 Duko Bos (NED) (real),4,run,gate3,,,,,,0.0,,9.0
 Duko Bos (NED) (real),5,reach,finish,,,2369.0,,,,0.0,18.0

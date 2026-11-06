@@ -13,12 +13,14 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import requests  # noqa: E402
 
-from backend import analysis, boat_speed, race_analysis, strategy  # noqa: E402
+from backend import analysis, boat_speed, paths, race_analysis, strategy  # noqa: E402
 from backend.analysis import tagging  # noqa: E402
 from backend.ai import snapshot  # noqa: E402
 from backend.compute.map_grid import MAP_LAYERS, get_map_grid, local_bounds  # noqa: E402
 from frontend import ai_views  # noqa: E402
 from frontend.current_map import combine_layers, render_current_map  # noqa: E402
+from frontend.race_map import render_current_map as render_race_map  # noqa: E402
+from frontend.race_progress import load_race_progress, race_track_window  # noqa: E402
 
 TEAL, INK, ORANGE = "#087f82", "#071c2c", "#c8642c"
 
@@ -64,6 +66,87 @@ CSS = f"""
 .la-flow {{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 14px; }}
 .la-flow div {{ background:#fff7c9; border:1px solid #eadf8f; border-radius:6px; padding:8px 10px; font-size:.85rem; }}
 .la-flow div.done {{ background:#dff1e4; border-color:#b5dcbf; }}
+.la-ex {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:4px 0 14px; }}
+.la-ex > div {{ background:#fff; border:1px solid #d9e4e1; border-top:4px solid {TEAL}; border-radius:12px; padding:12px 14px; }}
+.la-ex h5 {{ margin:0 0 8px; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:#55666e; }}
+.la-ex .hero {{ font-size:1.5rem; font-weight:800; color:{INK}; line-height:1.15; }}
+.la-ex .step {{ display:flex; align-items:center; gap:8px; margin:5px 0; font-size:.85rem; }}
+.la-ex .step b {{ background:{INK}; color:#fff; border-radius:50%; min-width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:.75rem; }}
+.la-ex .bar {{ display:flex; align-items:center; gap:8px; margin:6px 0; font-size:.8rem; }}
+.la-ex .bar span.l {{ width:112px; color:#55666e; }}
+.la-ex .bar span.t {{ flex:1; background:#eef2f1; border-radius:5px; height:16px; }}
+.la-ex .bar span.t i {{ display:block; height:100%; border-radius:5px; background:{TEAL}; }}
+.la-ex .bar span.v {{ width:38px; font-weight:700; text-align:right; }}
+@media (max-width:900px) {{ .la-ex {{ grid-template-columns:1fr; }} }}
+.la-slide {{ background:#fbfcfb; border:1px solid #d9e4e1; border-radius:16px; padding:18px 20px; margin:6px 0 18px;
+  background-image:radial-gradient(#e3ebe9 1px, transparent 1px); background-size:18px 18px; }}
+.la-slide .title {{ font-size:1.25rem; font-weight:800; color:{INK}; margin-bottom:14px; }}
+.la-slide h6 {{ margin:0 0 6px; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:#55666e; }}
+.la-slide .pipe {{ display:grid; grid-template-columns:repeat(5,1fr); gap:26px; }}
+.la-slide .stage {{ position:relative; background:#fff; border:2px solid {TEAL}; border-radius:14px; padding:12px; }}
+.la-slide .stage:not(:last-child)::after {{ content:"➜"; position:absolute; right:-23px; top:42%; color:{ORANGE}; font-size:1.3rem; }}
+.la-slide .stage .n {{ position:absolute; top:-12px; left:12px; background:{ORANGE}; color:#fff; border-radius:50%;
+  width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.8rem; }}
+.la-slide .stage .big {{ font-size:1.6rem; font-weight:800; color:{INK}; margin:2px 0 6px; }}
+.la-slide .chip {{ display:inline-block; background:#e7f0ee; color:{INK}; border-radius:999px; padding:2px 8px; margin:2px 3px 0 0; font-size:.72rem; }}
+.la-slide .lower {{ display:grid; grid-template-columns:1.2fr 1fr 0.9fr; gap:14px; margin-top:16px; }}
+.la-slide .panel {{ background:#fff; border:1px solid #d9e4e1; border-radius:12px; padding:12px 14px; }}
+.la-slide .bar {{ display:flex; align-items:center; gap:8px; margin:7px 0; font-size:.8rem; }}
+.la-slide .bar span.l {{ width:118px; color:#55666e; }}
+.la-slide .bar span.t {{ flex:1; background:#eef2f1; border-radius:5px; height:18px; }}
+.la-slide .bar span.t i {{ display:block; height:100%; border-radius:5px; background:{TEAL}; }}
+.la-slide .bar span.v {{ width:38px; font-weight:700; text-align:right; }}
+.la-slide .big-o {{ font-size:2rem; font-weight:800; color:{TEAL}; line-height:1.1; }}
+.la-slide .val {{ display:flex; align-items:center; gap:10px; margin:10px 0; font-weight:600; color:{INK}; }}
+.la-slide .val b {{ background:{INK}; color:#fff; border-radius:10px; min-width:34px; height:34px; display:flex;
+  align-items:center; justify-content:center; font-size:1.1rem; }}
+@media (max-width:1000px) {{ .la-slide .pipe, .la-slide .lower {{ grid-template-columns:1fr; }}
+  .la-slide .stage::after {{ display:none; }} }}
+/* ---------- live view: instrument band + connected timeline ---------- */
+.lv-band {{ display:grid; grid-template-columns:280px minmax(0,1fr); gap:28px; align-items:start; padding:26px 30px; margin:4px 0 18px;
+  border-radius:20px; color:#fff; background:radial-gradient(120% 140% at 0% 0%, #0d3a66 0%, #071c2c 55%, #02050b 100%);
+  box-shadow:0 18px 40px rgba(7,28,44,.18); }}
+.lv-dial {{ width:220px; height:220px; margin:0 auto; }}
+.lv-head {{ margin-bottom:8px; }}
+.lv-head span {{ font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; color:#5fd0ea; }}
+.lv-head .t {{ margin:4px 0 0; color:#fff; font-size:clamp(1.6rem, 2.6vw, 2.3rem); font-weight:700;
+  letter-spacing:-.01em; line-height:1.15; }}
+.st-key-showcase_mode {{ position:relative; z-index:5; }}
+.lv-mid {{ display:flex; flex-direction:column; gap:20px; min-width:0; }}
+.lv-path {{ display:flex; align-items:center; gap:0; }}
+.lv-path i {{ flex:1; height:2px; min-width:24px; background:linear-gradient(90deg, rgba(95,208,234,.8), var(--st)); }}
+.lv-node {{ padding:12px 16px; border:1px solid rgba(255,255,255,.14); border-radius:14px; background:rgba(255,255,255,.05);
+  backdrop-filter:blur(8px); white-space:nowrap; }}
+.lv-node span {{ display:block; font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.6); }}
+.lv-node b {{ display:block; font-size:1.35rem; font-weight:800; margin-top:2px; }}
+.lv-node em {{ display:block; font-style:normal; font-size:.78rem; color:rgba(255,255,255,.6); white-space:normal; max-width:280px; }}
+.lv-node.now {{ border-color:var(--st); box-shadow:0 0 0 3px color-mix(in srgb, var(--st) 25%, transparent); }}
+.lv-insight {{ position:relative; padding:16px 18px 14px; border-radius:14px; background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1); }}
+.lv-tag {{ position:absolute; top:-12px; left:16px; color:#000; font-weight:700; font-size:.78rem; padding:3px 9px; border-radius:4px; }}
+.lv-status {{ font-weight:700; font-size:.82rem; letter-spacing:.06em; text-transform:uppercase; margin-top:4px; }}
+.lv-insight p {{ margin:6px 0 6px; font-size:1.12rem; line-height:1.45; color:#fff; }}
+.lv-rule {{ font-size:.75rem; color:rgba(255,255,255,.5); }}
+.lv-cap {{ font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; color:#55666e; margin-bottom:6px; }}
+.st-key-live_timeline {{ position:relative; margin-bottom:18px; }}
+.st-key-live_timeline [data-testid="stHorizontalBlock"] {{ position:relative; gap:10px; }}
+.st-key-live_timeline [data-testid="stHorizontalBlock"]::before {{ content:""; position:absolute; left:0; right:0; top:50%;
+  height:2px; background:linear-gradient(90deg, #5fd0ea, #d9e4e1); z-index:0; }}
+.st-key-live_timeline button {{ position:relative; z-index:1; border-radius:14px; min-height:3.4rem; line-height:1.25;
+  background:#fff; border:1px solid #d9e4e1; color:{INK}; font-size:.85rem; box-shadow:0 4px 12px rgba(7,28,44,.06); }}
+.st-key-live_timeline button[kind="primary"] {{ background:{INK}; border-color:{INK}; color:#fff;
+  box-shadow:0 0 0 3px rgba(95,208,234,.45); }}
+.st-key-live_timeline button[kind="primary"]:hover {{ background:{INK}; }}
+.st-key-simulate_next button {{ border-style:dashed; color:#FF6600; border-color:#FF6600; background:#fff7f1; }}
+.lv-feed {{ border-left:2px solid #d9e4e1; margin:6px 0 10px 8px; padding-left:18px; }}
+.lv-item {{ position:relative; display:flex; gap:14px; padding:10px 0; }}
+.lv-item::before {{ content:""; position:absolute; left:-25px; top:16px; width:12px; height:12px; border-radius:50%;
+  background:#FF6600; box-shadow:0 0 0 4px #fff; }}
+.lv-item.warn::before {{ background:#f59e0b; }}
+.lv-t {{ font-weight:800; color:{INK}; min-width:48px; }}
+@media (max-width:900px) {{ .lv-band {{ grid-template-columns:1fr; justify-items:center; }}
+  .lv-mid {{ width:100%; }}
+  .lv-path {{ flex-direction:column; align-items:stretch; }} .lv-path i {{ height:18px; width:2px; min-width:0; margin:0 auto; }} }}
 </style>
 """
 
@@ -164,7 +247,9 @@ def document_entries():
 
 @st.cache_data(show_spinner="Preparing ILCA 7 telemetry…")
 def speed_dataset(horizon_seconds=30):
-    return boat_speed.build_dataset(horizon_seconds)
+    dataset = boat_speed.build_dataset(horizon_seconds)
+    dataset["boat"] = dataset["boat"].replace(SPEED_BOAT_NAMES)
+    return dataset
 
 
 @st.cache_resource(show_spinner="Training ILCA 7 speed model…")
@@ -186,6 +271,7 @@ SPEED_LEADER_LABELS = {
     "Duko Bos": "3 · Duko Bos (NED 206717)",
 }
 SPEED_SELECTOR_EXCLUSIONS = {"2796_15347_USA_211414"}
+SPEED_BOAT_NAMES = {"Clemente Seguel Lac mara": "Clemente Seguel Lacámara"}
 
 
 def speed_colour(speed_kt):
@@ -255,15 +341,25 @@ def speed_track_points(rows, model, horizon):
     return points
 
 
-def speed_replay_map(rows, index, model, horizon, location_name, location_info):
+@st.cache_data(show_spinner=False)
+def speed_race_progress():
+    return load_race_progress()
+
+
+def speed_replay_map(rows, index, model, horizon, *, location_name, location_info, race=None,
+                     first_beat=True, compare_agent=True):
     """Build GPS playback data for the same renderer used by the Live map."""
     points = speed_track_points(rows, model, horizon)
-    render_current_map(
+    render_race_map(
         speed_map_payload(
             location_name,
             location_info,
             title="GPS speed route",
             gps_track=points,
+            race_progress=[race] if race else [],
+            replay_phase="first_beat" if first_beat else "full_race",
+            compare_agent=compare_agent,
+            focus_boat=rows.iloc[0]["boat"] if not rows.empty else None,
             start_frame=index,
             autoplay=False,
         ),
@@ -319,7 +415,10 @@ LAYER_DOTS = {"Ocean currents": "🔵", "Waves": "🟠", "Wind waves": "🟣", "
 
 def layer_picker(key):
     """Multi-select: every chosen marine layer is overlaid on the map in its own colour."""
-    st.session_state.setdefault(key, ["Ocean currents"])
+    if st.session_state.get("marine_rate_limited") and st.button("Retry marine data", key=f"{key}_retry"):
+        st.session_state["marine_rate_limited"] = False
+        st.rerun()
+    st.session_state.setdefault(key, list(MAP_LAYERS))
     st.session_state[key] = [name for name in st.session_state[key] if name in MAP_LAYERS]
     return st.pills(
         "Marine layers", list(MAP_LAYERS), selection_mode="multi", key=key,
@@ -346,12 +445,31 @@ def load_layer_grids(names, latitude, longitude, day):
         st.error(f"The shared location ({latitude:.3f}°, {longitude:.3f}°) is outside the map's range. "
                  "Reset it in the 📍 menu, or pick a venue in Coach file.")
         return []
+    cache = st.session_state.setdefault("marine_grid_cache", {})
     grids = []
+    if st.session_state.get("marine_rate_limited"):
+        st.warning("Open-Meteo's daily API limit has been reached. Showing marine layers already loaded in this session; new layers will be available when the limit resets.")
+        return [cache[(latitude, longitude, str(day), name)] for name in names
+                if (latitude, longitude, str(day), name) in cache]
     with st.spinner(f"Building {', '.join(name.lower() for name in names)}…"):
         for name in names:
+            cache_key = (latitude, longitude, str(day), name)
+            if cache_key in cache:
+                grids.append(cache[cache_key])
+                continue
             try:
-                grids.append(get_map_grid(latitude, longitude, day, name))
+                grid = get_map_grid(
+                    latitude, longitude, day, name,
+                    bounds=local_bounds(latitude, longitude, 4_000),
+                    grid_rows=5, grid_columns=5,
+                )
+                cache[cache_key] = grid
+                grids.append(grid)
             except requests.exceptions.RequestException as error:
+                if getattr(getattr(error, "response", None), "status_code", None) == 429:
+                    st.session_state["marine_rate_limited"] = True
+                    st.warning("Open-Meteo's daily API limit has been reached. Showing any layers already loaded in this session. Try new data after the limit resets.")
+                    break
                 st.error(f"Could not load {name}: {describe_error(error)}")
             except (KeyError, ValueError) as error:
                 st.error(f"Unexpected {name} response: {error}")
@@ -406,6 +524,10 @@ def render_speed_area_map(
         )
         return
 
+    if st.session_state.get("marine_rate_limited"):
+        st.warning("Open-Meteo's daily API limit has been reached. Select Location only to view the sailing area without marine data.")
+        return
+
     try:
         with st.spinner(f"Building the regional {layer.lower()} field…"):
             grid = get_map_grid(
@@ -418,9 +540,15 @@ def render_speed_area_map(
                     location_info["lon"],
                     location_info["radius_m"],
                 ),
+                grid_rows=5,
+                grid_columns=5,
             )
     except requests.exceptions.RequestException as error:
-        st.error(f"Could not load the regional map layer: {error}")
+        if getattr(getattr(error, "response", None), "status_code", None) == 429:
+            st.session_state["marine_rate_limited"] = True
+            st.warning("Open-Meteo's daily API limit has been reached. Select Location only to view the sailing area without marine data.")
+        else:
+            st.error(f"Could not load the regional map layer: {describe_error(error)}")
         return
     except (KeyError, ValueError) as error:
         st.error(f"Unexpected regional map response: {error}")
@@ -439,6 +567,7 @@ def render_speed_area_map(
         "location_marker": location_payload,
         "gps_overlay": gps_overlay or [],
         "gps_overlay_index": gps_index,
+        "boat_label": SPEED_LEADER_LABELS.get(st.session_state.get("speed_boat"), st.session_state.get("speed_boat")),
     }, height=560)
     st.caption(
         f"{MAP_LAYERS[layer]['description']} Modelled Open-Meteo data for "
@@ -451,13 +580,14 @@ def render_speed_area_map(
 
 @st.dialog("Upload coach files", width="large")
 def upload_dialog():
-    files_tab, transcript_tab = st.tabs(["Drag & drop or browse", "Paste a transcript"])
+    files_tab, transcript_tab, voice_tab = st.tabs(
+        ["Drag & drop or browse", "Paste a transcript", "Record a voice memo"])
     with files_tab:
         uploads = st.file_uploader(
             "Drag and drop files here, or click **Upload** to pick them from your computer",
             accept_multiple_files=True, type=analysis.UPLOAD_TYPES, key="dialog_uploads")
         st.caption("Sailing instructions · wind logs · GPS tracks · results · notes · "
-                   "photos of whiteboards · transcripts")
+                   "photos of whiteboards · transcripts · voice memos (M4A, MP3, WAV)")
         if st.button("Add files", type="primary", disabled=not uploads, width="stretch"):
             for upload in uploads:
                 data = upload.getvalue()
@@ -469,6 +599,15 @@ def upload_dialog():
                             placeholder="Coach: How did the first beat go?\nSailor: Right paid after 12:00.")
         if st.button("Add transcript", type="primary", disabled=not text.strip(), width="stretch"):
             st.session_state.pasted.append(analysis.analyse_pasted_transcript(unique_name(title), text))
+            st.rerun()
+    with voice_tab:
+        memo_title = st.text_input("Title", value="Voice memo", key="memo_title")
+        recording = st.audio_input("Press the microphone, speak, then press stop", key="memo_audio")
+        st.caption("Transcribed on this laptop with Whisper. The first run downloads the speech model.")
+        if st.button("Transcribe & add", type="primary", disabled=recording is None, width="stretch"):
+            with st.spinner("Transcribing…"):
+                st.session_state.pasted.append(
+                    analysis.analyse_voice_memo(unique_name(memo_title), recording.getvalue()))
             st.rerun()
 
 
@@ -884,6 +1023,100 @@ def render_scenario_table(insight):
                "Switch side commits to the other side (impact −2) · Plan B prepares the light-air / late-breeze "
                "plan (likelihood −1, impact −1). Recommended levers are pre-selected.")
 
+# ---------- model explainer (demo toggle) ----------
+
+@st.cache_data(show_spinner=False)
+def race_model_outcome():
+    """Numbers for the race-model slide (None if no race data downloaded)."""
+    try:
+        from backend.race_model import model as race_model
+        table, marks, tracks = race_model.build()
+    except (SystemExit, FileNotFoundError):
+        return None
+    summary = race_model.summary(table)
+    summary["label"] = summary["side"] + " · " + summary["style"]
+    summary["ahead"] = summary["gained_pct"] * summary["legs"]
+    by_label = summary.groupby("label")[["ahead", "legs"]].sum()
+    fit = race_model.fit(table)
+    return {"rows": (by_label["ahead"] / by_label["legs"]).round().astype(int).sort_values(ascending=False).to_dict(),
+            "legs": int(len(table)), "boats": int(table["boat_id"].nunique()), "races": int(table["race"].nunique()),
+            "points": int(sum(len(t) for session in tracks.values() for t in session.values())),
+            "marks": int(len(marks)), "train": fit["train_rows"], "test": fit["test_rows"], "mae": fit["test_mae_s"]}
+
+
+def _bars(rows):
+    return "".join(f'<div class="bar"><span class="l">{esc(k)}</span><span class="t"><i style="width:{v}%"></i></span>'
+                   f'<span class="v">{v}%</span></div>' for k, v in rows.items())
+
+
+def _loop_svg(steps):
+    """Circular fine-tuning loop: steps placed on a ring with arrows between them."""
+    cx, cy, r = 150, 120, 82
+    nodes = []
+    for i, label in enumerate(steps):
+        angle = -math.pi / 2 + 2 * math.pi * i / len(steps)
+        x, y = cx + r * math.cos(angle), cy + r * math.sin(angle)
+        nodes.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="9" fill="{TEAL}"/>'
+                     f'<text x="{x:.0f}" y="{y + 4:.0f}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">{i + 1}</text>'
+                     f'<text x="{x + (14 if x >= cx else -14):.0f}" y="{y + 4:.0f}" font-size="11" fill="{INK}" '
+                     f'text-anchor="{"start" if x >= cx else "end"}">{esc(label)}</text>')
+    ring = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="#b9d3d0" stroke-width="2" stroke-dasharray="5 5"/>'
+    return (f'<svg viewBox="-60 0 420 240" width="100%" height="230">{ring}'
+            f'<text x="{cx}" y="{cy - 2}" text-anchor="middle" font-size="13" font-weight="800" fill="{INK}">repeat</text>'
+            f'<text x="{cx}" y="{cy + 14}" text-anchor="middle" font-size="10" fill="#55666e">until error stops falling</text>'
+            + "".join(nodes) + "</svg>")
+
+
+def _slide(title, stages, loop, outcome, value):
+    pipe = "".join(
+        f'<div class="stage"><div class="n">{i}</div><h6>{esc(head)}</h6><div class="big">{big}</div>'
+        + "".join(f'<span class="chip">{esc(c)}</span>' for c in chips) + "</div>"
+        for i, (head, big, chips) in enumerate(stages, 1))
+    values = "".join(f'<div class="val"><b>{icon}</b>{esc(text)}</div>' for icon, text in value)
+    return (f'<div class="la-slide"><div class="title">{esc(title)}</div><div class="pipe">{pipe}</div>'
+            f'<div class="lower"><div class="panel"><h6>Fine-tuning loop</h6>{loop}</div>'
+            f'<div class="panel"><h6>Outcome</h6>{outcome}</div><div class="panel"><h6>Value for the coach</h6>{values}</div>'
+            f'</div></div>')
+
+
+def model_explainer(kind, speed_model=None):
+    """Demo toggle: one whiteboard-style slide. Data -> model -> fine-tuning -> outcome -> value."""
+    if not st.toggle("Demo · how the model works", key=f"explain_{kind}"):
+        return
+    if kind == "race":
+        o = race_model_outcome()
+        if o is None:
+            st.info("Download the race data first: python -m backend.race_model.fetch_data")
+            return
+        stages = [
+            ("Data ingested", f"{o['points']:,}", ["GPS points", f"{o['boats']} boats", f"{o['races']} races", "mark times", "wind per leg"]),
+            ("Course rebuilt", f"{o['marks']}", ["buoys + starts", "median of boats", "at rounding time"]),
+            ("Modelled", f"{o['legs']}", ["boat-legs", "left / right", "how far out", "seconds vs fleet"]),
+            ("Fine-tuned", f"{o['train']} → {o['test']}", ["train: fleet", "test: winners", "25% threshold"]),
+            ("Outcome", f"{max(o['rows'].values())}%", ["best approach", "beats typical boat"]),
+        ]
+        loop = _loop_svg(["Train on the fleet", "Test on the winners", "Measure the error", "Tune features + threshold", "Add more race days"])
+        mae = f" · winner error {o['mae']:.0f} s" if o["mae"] is not None else ""
+        outcome = (_bars(o["rows"]) + f'<div class="la-small">% of legs ahead of the typical boat · 19 Jul, leg 1{mae}</div>')
+        value = [("◎", "Which side pays, per wind"), ("⚑", "Bold or safe: proven odds"), ("↻", "Gets sharper every regatta")]
+        st.markdown(_slide("Race model · which approach gains time", stages, loop, outcome, value), unsafe_allow_html=True)
+    else:
+        m = speed_model
+        stages = [
+            ("Data ingested", str(len(list(paths.SAILSYNC_DIR.rglob("2796_*.csv")))), ["GPS tracks", "19 Jul", "1 point / 1.7 s"]),
+            ("Features", "7", ["speed now", "30 s + 60 s trend", "acceleration", "turn rate", "heading"]),
+            ("Modelled", "ridge", ["small + explainable", "10 s steps", "30 s ahead"]),
+            ("Fine-tuned", f"{m.boats}", ["other boats", "chosen boat left out", "last 20% held back"]),
+            ("Outcome", f"{m.validation_mae_kt:.2f} kt", ["average error", f"{m.training_rows:,} samples"]),
+        ]
+        loop = _loop_svg(["Train on other boats", "Hold back race end", "Measure the error", "Tune smoothing + ridge", "Add more tracks"])
+        span = m.residual_high_kt - m.residual_low_kt
+        outcome = (f'<div class="big-o">{m.validation_mae_kt:.2f} kt</div><div class="la-small">average error, 30 s ahead</div>'
+                   f'<div class="big-o" style="margin-top:10px">±{span / 2:.1f} kt</div><div class="la-small">80% band</div>')
+        value = [("⏱", "See slowdowns 30 s early"), ("⛵", "Compare trim + tactics"), ("↻", "Same model at any venue")]
+        st.markdown(_slide("Speed model · speed 30 seconds ahead", stages, loop, outcome, value), unsafe_allow_html=True)
+
+
 def render_strategy_overview():
     insight, tide, brief = current_brief()
     st.header("Strategy overview")
@@ -900,6 +1133,7 @@ def render_strategy_overview():
     st.markdown('<div class="la-flow">' + "".join(
         f'<div class="{"done" if done else ""}">{"✓ " if done else ""}{esc(name)}</div>' for name, done in steps)
         + "</div>", unsafe_allow_html=True)
+    model_explainer("race")
     if brief is None:
         st.warning("Pick a wind direction and hour with historic data in Venue · Geoinformation first.")
         return
@@ -962,9 +1196,8 @@ def render_strategy_overview():
 
 def render_speed_forecast():
     """Replay an unseen boat and predict its speed 30 seconds ahead."""
-    st.header("ILCA 7 speed forecast")
-    st.caption("A short-horizon forecast learned from 44 SailSync GPS tracks. "
-               "Choose any of the three LA28 sailing areas.")
+    st.header("Race replay & forecast")
+    st.caption("Recorded SailSync tracks · 19 July 2026 · ILCA 7")
 
     horizon = 30
     data = speed_dataset(horizon)
@@ -996,60 +1229,66 @@ def render_speed_forecast():
         render_speed_area_map(location, location_info, layer, "speed_uncalibrated")
         return
 
+    races = speed_race_progress()
+    if not races:
+        st.info("Race course data is unavailable.")
+        return
+    race_number = boat_col.radio("Race", [race["race"] for race in races],
+                                format_func=lambda number: f"Race {number}", horizontal=True, key="speed_race")
+    race = next(race for race in races if race["race"] == race_number)
+    phase_col, compare_col = st.columns([2, 1])
+    phase = phase_col.radio("Replay phase", ["First beat", "Full race"], horizontal=True, key="speed_phase")
+    first_beat = phase == "First beat"
+    agent_available = any(track["agent"] and track["points" if first_beat else "full_points"]
+                          for track in race["tracks"])
+    compare_agent = compare_col.toggle("Compare with agent", value=True, disabled=not agent_available,
+                                       key="speed_compare_agent") and agent_available
+    if not agent_available:
+        st.caption("No agent simulation is available for this race and replay phase.")
+    st.caption(" · ".join(f"{entry['position']}: {entry['name']}"
+                          + (" (GPS unavailable)" if not entry["gps_available"] else "")
+                          for entry in race["rankings"]))
     available_boats = set(data["boat"].unique()) - SPEED_SELECTOR_EXCLUSIONS
-    leaders = [name for name in SPEED_LEADER_LABELS if name in available_boats]
-    boats = leaders + sorted(available_boats - set(leaders))
-    selected_boat = boat_col.selectbox(
-        "Live boat feed",
-        boats,
-        key="speed_boat",
-        format_func=lambda name: SPEED_LEADER_LABELS.get(name, name),
-    )
-
-    boat_rows = data[data["boat"] == selected_boat].reset_index(drop=True)
-    maximum = max(0, len(boat_rows) - 1)
-    if st.session_state.get("speed_replay_boat") != selected_boat:
-        st.session_state.speed_replay_boat = selected_boat
-        st.session_state.speed_replay_position = min(maximum, maximum // 2)
-    index = min(
-        maximum, st.session_state.get("speed_replay_position", maximum // 2)
-    )
+    boats = [entry["name"] for entry in race["rankings"] if entry["name"] in available_boats]
+    boats += sorted(name for name in available_boats - set(boats) if " Agent" not in name)
+    if st.session_state.get("speed_focus_race") != race_number:
+        st.session_state["speed_boat"] = boats[0]
+        st.session_state["speed_focus_race"] = race_number
+    selected_boat = st.selectbox("Focus boat", boats, key="speed_boat",
+                                 format_func=lambda name: next((f"{entry['position']} · {name}" for entry in race["rankings"]
+                                                          if entry["name"] == name), name))
+    boat_rows, _ = race_track_window(data[data["boat"] == selected_boat], race, first_beat)
+    if boat_rows.empty:
+        st.info("No recorded GPS points for this boat in the selected race.")
+        return
+    if not first_beat:
+        st.caption("Estimated 45-minute race window; official finish times are unavailable. "
+                   "Agent comparison uses the full-race simulation where available.")
+        if not race["finish"]:
+            st.caption("Finish position unavailable for this race.")
     model = speed_model(horizon, selected_boat)
+    st.caption("Use ▶ Play / ❚❚ Pause on the map to control the race replay.")
+    speed_replay_map(boat_rows, 0, model, horizon, location_name=location, location_info=location_info,
+                     race=race, first_beat=first_beat, compare_agent=compare_agent)
 
-    st.subheader("GPS movement and predicted position")
-    layer = st.selectbox(
-        "Map data",
-        ["GPS speed route", "Location only", *MAP_LAYERS],
-        key="speed_calibrated_layer",
-    )
-    if layer == "GPS speed route":
+    with st.expander("Environmental layers"):
+        layer = st.selectbox("Map data", ["Location only", *MAP_LAYERS], key="speed_calibrated_layer")
+        render_speed_area_map(location, location_info, layer, "speed_calibrated")
+    with st.expander("How the forecast works & model accuracy"):
+        model_explainer("speed", model)
         st.caption(
-            "Hover over the trail for speed. Dark marker = current GPS position; orange marker = "
-            f"projected position in {horizon} seconds at the predicted speed."
+            f"Validation MAE: {model.validation_mae_kt:.2f} kt · "
+            f"{model.training_rows:,} samples from {model.boats} other boats · "
+            "GPS-derived speed is smoothed over 30 seconds."
         )
-        speed_replay_map(
-            boat_rows, index, model, horizon, location, location_info
-        )
-    else:
-        render_speed_area_map(
-            location,
-            location_info,
-            layer,
-            "speed_calibrated",
-            gps_overlay=speed_track_points(boat_rows, model, horizon),
-            gps_index=index,
-        )
-    st.caption(
-        f"Validation MAE: {model.validation_mae_kt:.2f} kt · "
-        f"{model.training_rows:,} samples from {model.boats} other boats · "
-        "GPS-derived speed is smoothed over 30 seconds."
-    )
 
 
 # ---------- 8. Live ----------
 
-def render_live():
-    st.header("Live strategy check")
+def render_live(showcase=False):
+    """Live strategy check. showcase=<app title>: the stand-alone Live mode, title inside the band."""
+    if not showcase:
+        st.header("Live strategy check")
     _, _, brief = current_brief()
     plan = st.session_state.get("plan")
     if brief is None or not plan:
@@ -1066,63 +1305,146 @@ def render_live():
     def check(index):
         return strategy.live_check(plan["sector"], plan["low"], plan["high"], hours[index], hours[index + 1:index + 3])
 
-    top, sim = st.columns([3, 1])
-    top.caption("Weather pulled every hour and compared with this morning's brief. "
-                f"Hackathon mode: replaying {season()} {strategy.LIVE_YEAR} data as if live.")
-    if sim.button("Simulate next hour ▸", type="primary", width="stretch", disabled=last >= len(hours) - 1):
-        st.session_state.live_index = st.session_state.selected_hour = last + 1
-        st.rerun()
     selected = min(st.session_state.get("selected_hour", last), last)
+    now, upcoming = hours[selected], hours[selected + 1:selected + 3]
+    result = check(selected)
+    st.markdown(live_band(plan, now, upcoming, result, title=showcase or None), unsafe_allow_html=True)
 
-    snapshots, main = st.columns([1, 2.6], gap="medium")
-    with snapshots, st.container(border=True):
-        st.markdown("#### Hourly snapshots")
-        for index in range(last, -1, -1):
-            result = check(index)
-            mood = "on plan" if result["status"] == "Plan holds" else result["status"].lower()
+    with st.container(key="live_timeline"):
+        st.markdown(f'<div class="lv-cap">Race day · {now["time"]:%d %b} · replaying {season()} '
+                    f'{strategy.LIVE_YEAR} as if live</div>', unsafe_allow_html=True)
+        nodes = st.columns(len(hours) + 1)
+        for index in range(last + 1):
             row = hours[index]
-            if st.button(f"{row['time']:%d %b %H:%M} · {strategy.sector(row['dir'])} {row['speed']:.0f} kt · {mood}",
-                         key=f"snap_{index}", width="stretch",
-                         type="primary" if index == selected else "secondary"):
+            dot = {"Plan holds": ":green[●]", "Change coming": ":orange[●]", "Change": ":red[●]"}[check(index)["status"]]
+            if nodes[index].button(f"{dot} {row['time']:%H:%M}  \n{strategy.sector(row['dir'])} {row['speed']:.0f} kt",
+                                   key=f"snap_{index}", width="stretch",
+                                   type="primary" if index == selected else "secondary"):
                 st.session_state.selected_hour = index
                 st.rerun()
+        if last < len(hours) - 1 and nodes[last + 1].button(
+                f"Next hour ▸  \n{hours[last + 1]['time']:%H:%M}", key="simulate_next", width="stretch"):
+            st.session_state.live_index = st.session_state.selected_hour = last + 1
+            st.rerun()
 
-    with main:
-        now, upcoming = hours[selected], hours[selected + 1:selected + 3]
-        result = check(selected)
-        next_speeds = [row["speed"] for row in upcoming] or [now["speed"]]
-        for column, (label, value) in zip(st.columns(3), [
-                ("Wind now", f"{strategy.sector(now['dir'])} {now['speed']:.0f} kt"),
-                ("Next 2 h", f"{min(next_speeds):.0f}–{max(next_speeds):.0f} kt"),
-                ("Sky", strategy.sky(now["cloud"]))]):
-            column.markdown(f'<div class="la-card"><div class="la-small">{label}</div>'
-                            f'<div style="font-size:1.5rem;font-weight:800;color:{INK}">{value}</div></div>',
-                            unsafe_allow_html=True)
-        badge = {"Plan holds": "la-ok", "Change coming": "la-warn", "Change": "la-bad"}[result["status"]]
-        st.markdown(f'<div class="la-card"><b>AI insight</b> <span class="{badge}">{result["status"]}</span>'
-                    f'<p style="margin:8px 0 0">{esc(result["message"])}</p><div class="la-small">Rule engine v0.1: '
-                    f'compares live wind with the brief ({plan["sector"]} {plan["low"]:.0f}–{plan["high"]:.0f} kt).'
-                    '</div></div>', unsafe_allow_html=True)
-        if result["warning"]:
-            st.warning(result["warning"], icon="📣")
+    if result["warning"]:
+        st.warning(result["warning"], icon="📣")
 
-        view_col, map_col = st.columns([1, 2.6])
-        with view_col:
-            offset = st.segmented_control("Map time", [0, 1, 2], default=0, key="live_offset",
-                                          format_func=lambda h: "T0" if h == 0 else f"T+{h}")
-            shown = hours[min(selected + (offset or 0), len(hours) - 1)]
-            st.markdown(f'<div class="la-dark"><div class="la-small">{shown["time"]:%H:%M} · from '
-                        f'{strategy.sector(shown["dir"])}</div><div class="big">{shown["speed"]:.0f} kt</div>'
-                        f'Gusts {shown["gust"]:.0f} kt</div>', unsafe_allow_html=True)
-        with map_col:
-            render_layer_map("live_map", shown["time"].hour, height=440)
+    _, map_time = st.columns([3, 1], vertical_alignment="bottom")
+    offset = map_time.segmented_control("Map time", [0, 1, 2], default=0, key="live_offset", width="stretch",
+                                        label_visibility="collapsed",
+                                        format_func=lambda h: "Now" if h == 0 else f"+{h} h")
+    shown = hours[min(selected + (offset or 0), len(hours) - 1)]
+    render_layer_map("live_map", shown["time"].hour, height=600 if showcase else 460)
 
-        st.markdown("#### Insight notifications")
-        feed = [(index, check(index)) for index in range(last, -1, -1)]
-        feed = [(index, r) for index, r in feed if r["status"] != "Plan holds"]
-        if not feed:
-            st.caption("No changes yet. New strategy suggestions appear here when the weather moves off plan.")
-        for index, r in feed:
-            st.info(f"**{hours[index]['time']:%H:%M}** — {r['message']}"
-                    + (f"\n\n{r['warning']}" if r["warning"] else ""),
-                    icon="🔁" if r["status"] == "Change" else "⏰")
+    feed = [(index, check(index)) for index in range(last, -1, -1)]
+    feed = [(index, r) for index, r in feed if r["status"] != "Plan holds"]
+    st.markdown("#### Strategy changes")
+    if not feed:
+        st.caption("No changes yet. New strategy suggestions appear here when the weather moves off plan.")
+    else:
+        st.markdown('<div class="lv-feed">' + "".join(
+            f'<div class="lv-item {"bad" if r["status"] == "Change" else "warn"}"><span class="lv-t">'
+            f'{hours[index]["time"]:%H:%M}</span><div><b>{esc(r["status"])}</b> · {esc(r["message"])}'
+            + (f'<div class="la-small">{esc(r["warning"])}</div>' if r["warning"] else "") + "</div></div>"
+            for index, r in feed) + "</div>", unsafe_allow_html=True)
+
+
+STATUS_COLOR = {"Plan holds": "#2bd4a4", "Change coming": "#f59e0b", "Change": "#FF6600"}
+
+
+def _point(bearing, radius, centre=100):
+    angle = math.radians(bearing)
+    return centre + radius * math.sin(angle), centre - radius * math.cos(angle)
+
+
+def wind_dial(wind_from, speed, plan_sector, color):
+    """Compass: cyan arc = briefing window, needle = wind now (blowing towards the centre)."""
+    planned = strategy.sector_center(plan_sector)
+    ticks = "".join(
+        f'<line x1="{_point(b, 86)[0]:.1f}" y1="{_point(b, 86)[1]:.1f}" x2="{_point(b, 80 if b % 45 else 74)[0]:.1f}" '
+        f'y2="{_point(b, 80 if b % 45 else 74)[1]:.1f}" stroke="rgba(255,255,255,{.25 if b % 45 else .6})" stroke-width="1.5"/>'
+        for b in range(0, 360, 5))
+    letters = "".join(f'<text x="{_point(b, 62)[0]:.1f}" y="{_point(b, 62)[1] + 4:.1f}" text-anchor="middle" '
+                      f'font-size="11" fill="rgba(255,255,255,.55)">{t}</text>'
+                      for b, t in ((0, "N"), (90, "E"), (180, "S"), (270, "W")))
+    a, b = _point(planned - 33.75, 92), _point(planned + 33.75, 92)
+    arc = (f'<path d="M{a[0]:.1f} {a[1]:.1f} A92 92 0 0 1 {b[0]:.1f} {b[1]:.1f}" fill="none" stroke="#5fd0ea" '
+           'stroke-width="6" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(95,208,234,.7))"/>')
+    tail, tip = _point(wind_from, 88), _point(wind_from, 50)
+    needle = (f'<line x1="{tail[0]:.1f}" y1="{tail[1]:.1f}" x2="{tip[0]:.1f}" y2="{tip[1]:.1f}" stroke="{color}" '
+              f'stroke-width="4" stroke-linecap="round"/><circle cx="{tail[0]:.1f}" cy="{tail[1]:.1f}" r="6" fill="{color}"/>')
+    return (f'<svg viewBox="-8 -8 216 216" class="lv-dial" role="img" aria-label="Wind {speed:.0f} kt from '
+            f'{strategy.sector(wind_from)}; briefing window {plan_sector}">{ticks}{arc}{letters}{needle}'
+            f'<text x="100" y="104" text-anchor="middle" font-size="34" font-weight="800" fill="#fff">{speed:.0f}</text>'
+            f'<text x="100" y="124" text-anchor="middle" font-size="11" fill="rgba(255,255,255,.6)">kt · {strategy.sector(wind_from)}</text></svg>')
+
+
+CONFIDENCE_COLOR = {"High": "#2bd4a4", "Medium-high": "#5fd0ea", "Medium": "#f59e0b", "Low": "#FF6600"}
+
+
+def instrument_band(eyebrow, title, dial, nodes, color, tag, status, message, rule, *, show_insight=True):
+    """Dark band shared by Preparation and Live: title, dial, three connected boxes, agent insight.
+
+    nodes: three (label, value, detail) tuples; the middle one is highlighted.
+    """
+    boxes = [f'<div class="lv-node{" now" if i == 1 else ""}"><span>{esc(label)}</span><b>{esc(value)}</b>'
+             + (f'<em>{esc(detail)}</em>' if detail else "") + "</div>"
+             for i, (label, value, detail) in enumerate(nodes)]
+    head = (f'<div class="lv-head"><span>{esc(eyebrow)}</span><div class="t">{esc(title)}</div></div>'
+            if title else "")
+    insight = (f'<div class="lv-insight"><div class="lv-tag" style="background:{color}">{esc(tag)}</div>'
+               f'<div class="lv-status" style="color:{color}">● {esc(status)}</div><p>{esc(message)}</p>'
+               f'<div class="lv-rule">{esc(rule)}</div></div>') if show_insight else ""
+    return (f'<div class="lv-band">{dial}<div class="lv-mid">{head}'
+            f'<div class="lv-path" style="--st:{color}">{"<i></i>".join(boxes)}</div>'
+            f'{insight}</div></div>')
+
+
+def live_band(plan, now, upcoming, result, title=None):
+    """Live: brief → now → next 2 h, checked by the rule engine."""
+    color = STATUS_COLOR[result["status"]]
+    speeds = [row["speed"] for row in upcoming] or [now["speed"]]
+    low, high = round(min(speeds)), round(max(speeds))
+    brief = f'{plan["sector"]} {plan["low"]:.0f}–{plan["high"]:.0f} kt'
+    return instrument_band(
+        f'Live race view · {now["time"]:%d %b} · race day', title,
+        wind_dial(now["dir"], now["speed"], plan["sector"], color),
+        [("Brief", brief, ""),
+         (f'Now · {now["time"]:%H:%M}', f'{strategy.sector(now["dir"])} {now["speed"]:.0f} kt',
+          f'gusts {now["gust"]:.0f} · {strategy.sky(now["cloud"]).lower()}'),
+         ("Next 2 h", f"{low}–{high} kt" if low != high else f"{low} kt", "")],
+        color, "Wind agent", result["status"], result["message"], f"Rule engine v0.1 · live wind vs the brief ({brief})")
+
+
+def prep_band(title):
+    """Preparation: event date → weather forecast → venue, with the briefing agent's call."""
+    insight, tide, brief = current_brief()
+    state = st.session_state
+    venue = state.venue.split(" (")[0]
+    lat, lon = state.get("selected_latitude", 33.72), state.get("selected_longitude", -118.27)
+    event = (f"{state.race_day:%d %b %Y}", f"{state.time_of_day} · {state.map_hour}:00 start")
+    place = (venue, f"{state.boat_class} · {lat:.3f}, {lon:.3f}")
+    if brief is None:
+        color = "#f59e0b"
+        return instrument_band(
+            "Race preparation", title, wind_dial(strategy.sector_center(insight["sector"]), 0, insight["sector"], color),
+            [("Event", *event), ("Weather forecast", f'{insight["sector"]} · no match', "no similar historic days"),
+             ("Venue", *place)],
+            color, "Briefing agent", "No forecast",
+            f'No historic day had {insight["sector"]} wind at {insight["hour"]}:00. Pick another wind direction '
+            "in Venue · Geoinformation.", f'{insight["total_days"]} historic days checked',
+            show_insight=False)
+    color = CONFIDENCE_COLOR.get(brief["confidence"], "#5fd0ea")
+    answers = dict(brief["questions"])
+    return instrument_band(
+        "Race preparation", title,
+        wind_dial(strategy.sector_center(insight["sector"]), insight["speed"], insight["sector"], color),
+        [("Event", *event),
+         ("Weather forecast", brief["cards"]["Wind"],
+          f'gusts {insight["gust"]:.0f} · sea breeze {brief["cards"]["Sea breeze"].lower()} · {brief["cards"]["Current"].lower()}'),
+         ("Venue", *place)],
+        color, "Briefing agent", f'Confidence {brief["confidence"].lower()}',
+        f'{answers["Which side pays, and why?"]} {answers["Where to start?"]}',
+        f'Based on {insight["n_days"]} of {insight["total_days"]} historic days with {insight["sector"]} wind at {insight["hour"]}:00',
+        show_insight=False)

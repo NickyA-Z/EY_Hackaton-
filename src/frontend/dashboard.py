@@ -11,17 +11,19 @@ from backend.retrieval.geolocation import (
     GEO_DATA_DIRECTORY,
     load_geolocation_data,
 )
+from backend import strategy
 from backend.retrieval.marine_api import (
     POINT_VARIABLES,
     VARIABLE_LABELS,
     get_marine_data,
 )
-from frontend import agent_views
+from frontend import agent_views, globe
 from frontend.current_map import combine_layers, render_current_map
 from frontend.previous_strategy_view import render_previous_strategy
 from frontend.styles import apply_global_styles
 
 RESULT_VIEW_HEIGHT = 500
+APP_TITLE = "LA28 Olympic Sailing — Location Agent"
 EARLIEST_MAP_DATE = date(1940, 1, 1)
 LATEST_MAP_DATE = date(2026, 11, 3)
 
@@ -37,17 +39,102 @@ def select_geolocation(area):
     st.session_state["selected_longitude"] = float(area["lon"])
 
 
+def enter_venue():
+    """Globe callback: the dive into a venue finished, open the dashboard there."""
+    choice = st.session_state["prep_globe"].entered
+    if not choice or choice["id"] not in strategy.VENUES:
+        return
+    if choice["id"] != st.session_state["venue"]:
+        st.session_state["venue"] = choice["id"]
+        agent_views.use_venue_coordinates()
+    st.session_state["globe_entered"] = True
+    st.session_state["active_view"] = "venue"
+
+
+def pick_location():
+    """Globe callback: a click on the globe sets the shared coordinates."""
+    point = st.session_state["prep_globe"].picked
+    if point:
+        st.session_state["selected_latitude"] = float(point["lat"])
+        st.session_state["selected_longitude"] = float(point["lon"])
+
+
+def back_to_globe():
+    st.session_state["globe_entered"] = False
+    st.session_state["globe_returning"] = True
+
+
+def render_location_settings():
+    """Venue, event and shared coordinates (header location menu and globe page)."""
+    st.caption("VENUE & EVENT")
+    agent_views.render_event_settings()
+    st.caption("SHARED LOCATION")
+    st.number_input(
+        "Latitude",
+        min_value=-90.0,
+        max_value=90.0,
+        format="%.5f",
+        key="selected_latitude",
+    )
+    st.number_input(
+        "Longitude",
+        min_value=-180.0,
+        max_value=180.0,
+        format="%.5f",
+        key="selected_longitude",
+    )
+    st.caption("Picking a venue sets these coordinates. Used by the regional map and point analysis.")
+
+
+def render_globe_landing():
+    """Preparation starts on the globe; entering a venue opens the dashboard."""
+    intro, location_column = st.columns([6, 0.5], vertical_alignment="center")
+    intro.caption("Pick a live or upcoming event on the globe and dive into the venue. "
+                  "Click the globe to set the shared location.")
+    latitude = st.session_state["selected_latitude"]
+    longitude = st.session_state["selected_longitude"]
+    with location_column.popover(
+        "", icon=":material/location_on:", width="stretch",
+        help=f"Venue, event and location · {latitude:.3f}, {longitude:.3f}",
+    ):
+        render_location_settings()
+    globe.render_globe(
+        {
+            "venue": st.session_state["venue"],
+            "name": st.session_state["venue"].split(" (")[0],
+            "boat_class": st.session_state["boat_class"],
+            "race_day": f"{st.session_state['race_day']:%d %b %Y}",
+            "time_of_day": st.session_state["time_of_day"],
+            "lat": latitude,
+            "lon": longitude,
+        },
+        returning=st.session_state.pop("globe_returning", False),
+        key="prep_globe",
+        on_entered=enter_venue,
+        on_picked=pick_location,
+    )
+
+
 def render_header():
     """Render grouped navigation and compact shared location controls."""
-    active_view = st.session_state.setdefault("active_view", "live")
-    st.session_state.setdefault("selected_latitude", 33.72)
-    st.session_state.setdefault("selected_longitude", -118.27)
+    active_view = st.session_state.setdefault("active_view", "venue")
+    if active_view == "live":
+        active_view = st.session_state["active_view"] = "venue"
 
     with st.container(border=True, key="dashboard_header"):
         (
-            live_navigation, venue_navigation, briefs_navigation, strategy_navigation,
-            speed_navigation, previous_navigation, coach_navigation, location_column,
-        ) = st.columns([1, 1, 1, 1, 1.2, 1.3, 0.32, 0.32], vertical_alignment="center")
+            venue_navigation, strategy_navigation, briefs_navigation,
+            speed_navigation, previous_navigation, globe_navigation, coach_navigation, location_column,
+        ) = st.columns([1, 1, 1, 1.2, 1.3, 0.32, 0.32, 0.32], vertical_alignment="center")
+
+        globe_navigation.button(
+            "",
+            icon=":material/public:",
+            key="show_globe",
+            width="stretch",
+            help="Back to the event globe",
+            on_click=back_to_globe,
+        )
 
         venue_label = {
             "venue": "Venue · Geoinformation",
@@ -119,15 +206,6 @@ def render_header():
             on_click=select_view,
             args=("previous",),
         )
-        live_navigation.button(
-            "● Live",
-            key="show_live_view",
-            type="primary" if active_view == "live" else "secondary",
-            width="stretch",
-            on_click=select_view,
-            args=("live",),
-        )
-
         coach_navigation.button(
             "",
             icon=":material/upload_file:",
@@ -147,24 +225,7 @@ def render_header():
             help=f"Venue, event and location · {latitude:.3f}, {longitude:.3f}",
             width="stretch",
         ):
-            st.caption("VENUE & EVENT")
-            agent_views.render_event_settings()
-            st.caption("SHARED LOCATION")
-            st.number_input(
-                "Latitude",
-                min_value=-90.0,
-                max_value=90.0,
-                format="%.5f",
-                key="selected_latitude",
-            )
-            st.number_input(
-                "Longitude",
-                min_value=-180.0,
-                max_value=180.0,
-                format="%.5f",
-                key="selected_longitude",
-            )
-            st.caption("Picking a venue sets these coordinates. Used by the regional map and point analysis.")
+            render_location_settings()
 
     return (
         st.session_state["selected_latitude"],
@@ -260,32 +321,42 @@ def load_geo_data(area):
         st.error("Points start date must be on or before the map date.")
         return
     with st.spinner("Loading location, map and points…"):
-        st.session_state["map_grids"] = agent_views.load_layer_grids(
+        map_grids = agent_views.load_layer_grids(
             map_layers, latitude, longitude, map_date
         )
-        try:
-            dataframe, response_data = get_marine_data(
-                latitude, longitude, start_date, map_date, variable
-            )
-            st.session_state["point_result"] = {
-                "dataframe": dataframe,
-                "response_data": response_data,
-                "variable": variable,
-                "start_date": start_date,
-                "end_date": map_date,
-                "latitude": latitude,
-                "longitude": longitude,
-            }
-        except requests.exceptions.HTTPError as error:
-            st.error(f"Point data request failed: {error}")
-            if error.response is not None:
-                st.code(error.response.text)
-        except requests.exceptions.RequestException as error:
-            st.error(f"Network error: {error}")
-        except (KeyError, ValueError) as error:
-            st.error(f"Unexpected point data response: {error}")
+        if map_grids:
+            st.session_state["map_grids"] = map_grids
+        elif st.session_state.get("marine_rate_limited"):
+            return
+        if st.session_state.get("marine_rate_limited"):
+            st.info("Point data was not requested because the Open-Meteo daily limit has been reached.")
+        else:
+            try:
+                dataframe, response_data = get_marine_data(
+                    latitude, longitude, start_date, map_date, variable
+                )
+                st.session_state["point_result"] = {
+                    "dataframe": dataframe,
+                    "response_data": response_data,
+                    "variable": variable,
+                    "start_date": start_date,
+                    "end_date": map_date,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                }
+            except requests.exceptions.HTTPError as error:
+                if getattr(error.response, "status_code", None) == 429:
+                    st.session_state["marine_rate_limited"] = True
+                    st.warning("Open-Meteo's daily API limit has been reached. Previously loaded point data remains available.")
+                else:
+                    st.error(f"Point data request failed: {error}")
+            except requests.exceptions.RequestException as error:
+                st.error(f"Network error: {error}")
+            except (KeyError, ValueError) as error:
+                st.error(f"Unexpected point data response: {error}")
     st.session_state["geo_loaded"] = {
-        "area": area["key"], "layers": map_layers, "map_date": map_date, "start_date": start_date,
+        "area": area["key"], "layers": [grid["title"] for grid in map_grids],
+        "map_date": map_date, "start_date": start_date,
     }
 
 
@@ -422,10 +493,35 @@ def main():
     )
 
     apply_global_styles()
-    st.title("LA28 Olympic Sailing — Location Agent")
-    st.caption("Race preparation, venue intelligence and live decision support.")
-
+    _, mode_column = st.columns([4, 1.3], vertical_alignment="bottom")
+    # Showcase switch: Preparation = every planning view; Live = the live race view only.
+    if st.session_state.get("showcase_mode", "") is None:  # re-clicking the active option clears it
+        st.session_state["showcase_mode"] = st.session_state.get("_showcase_mode", "Preparation")
+    st.session_state.setdefault("showcase_mode", "Preparation")
+    mode = mode_column.segmented_control(
+        "Showcase", ["Preparation", "● Live"],
+        key="showcase_mode", label_visibility="collapsed", width="stretch",
+    )
+    st.session_state["_showcase_mode"] = mode
     agent_views.init_state()
+    # The location inputs live in the Preparation header; Streamlit drops widget keys on runs where
+    # the widget is not drawn (Live), so keep a shadow copy and restore from it.
+    for key, default in (("selected_latitude", 33.72), ("selected_longitude", -118.27)):
+        st.session_state[key] = st.session_state.get(key, st.session_state.get(f"_{key}", default))
+        st.session_state[f"_{key}"] = st.session_state[key]
+    if mode == "● Live":
+        if not st.session_state.get("globe_entered"):
+            st.info("Choose a venue in Preparation before loading live marine data.")
+            return
+        agent_views.render_live(showcase=APP_TITLE)
+        st.caption("Data: Open-Meteo Marine API. Ocean currents are modelled, not station measurements.")
+        return
+    st.session_state.setdefault("selected_latitude", 33.72)
+    st.session_state.setdefault("selected_longitude", -118.27)
+    if not st.session_state.get("globe_entered"):
+        render_globe_landing()
+        return
+    st.markdown(agent_views.prep_band(APP_TITLE), unsafe_allow_html=True)
     render_header()
     active_view = st.session_state["active_view"]
     if active_view == "coach":
@@ -445,8 +541,10 @@ def main():
         agent_views.render_speed_forecast()
     elif active_view == "previous":
         render_previous_strategy()
-    else:  # "live" (and any view name from before the merge into Geoinformation)
-        agent_views.render_live()
+    else:
+        st.session_state["active_view"] = "venue"
+        st.header("Geoinformation")
+        agent_views.render_venue_map(render_geo_data)
 
     st.caption(
         "Data: Open-Meteo Marine API. Ocean currents are modelled, "

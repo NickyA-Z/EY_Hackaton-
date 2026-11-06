@@ -29,8 +29,8 @@ def test_every_data_folder_exists_and_has_files():
     assert paths.GEO_VENUES_FILE.is_file()
 
 
-def test_sailsync_folder_has_all_44_tracks_and_the_provenance_note():
-    assert len(list(paths.SAILSYNC_DIR.rglob("2796_*.csv"))) == 44
+def test_sailsync_folder_has_all_45_tracks_and_the_provenance_note():
+    assert len(list(paths.SAILSYNC_DIR.rglob("2796_*.csv"))) == 45   # 44 + Clemente Seguel, fetched later (front_end_v0.1)
     assert (paths.SAILSYNC_DIR / "winners" / "explain.md").is_file()      # where the data came from
 
 

@@ -120,7 +120,7 @@ GPS tracks of boats. **One row = one GPS fix of one boat.**
 
 Key: `(source, track_id, time_utc)` is unique.
 
-Current contents: 44 ILCA 7 tracks from the San Pedro Olympic Classes Regatta.
+Current contents: 45 ILCA 7 tracks from the San Pedro Olympic Classes Regatta.
 - 105,437 fixes, about one every 1.7 s.
 - 19 July 2026, 21:05–00:21 UTC (14:05–17:21 local).
 - 4 top finishers.

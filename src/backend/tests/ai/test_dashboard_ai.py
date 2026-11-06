@@ -26,6 +26,7 @@ def _reset(monkeypatch):
 
 def open_view(view):
     at = AppTest.from_file(DASHBOARD, default_timeout=120)
+    at.session_state["globe_entered"] = True  # the dashboard opens on the event globe until a venue is entered
     at.session_state["active_view"] = view
     return at.run()
 

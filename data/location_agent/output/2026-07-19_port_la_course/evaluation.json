@@ -3,7 +3,7 @@
  "area": "port_la_course",
  "strategy_file": "strategy_anthropic_claude-sonnet-5-5.json",
  "model": "claude-sonnet-5-5",
- "created": "2026-11-06 12:44",
+ "created": "2026-11-06 13:53",
  "races": [
   {
    "race": 1,
@@ -20,25 +20,25 @@
     "mark_1_uncertainty_m": 38
    },
    "real_fleet_first_beat": {
-    "boats_ranked": 43,
+    "boats_ranked": 44,
     "ranked_at_s_after_gun": 579,
-    "ranking_vs_real_rounding_order_spearman": 0.86,
+    "ranking_vs_real_rounding_order_spearman": 0.87,
     "boats_with_real_rounding": 32,
-    "leaders_minus_rest_lateral_m": -34.0,
-    "leaders_minus_rest_line_position": -0.15,
+    "leaders_minus_rest_lateral_m": 27.0,
+    "leaders_minus_rest_line_position": -0.07,
     "side_paid": "middle",
-    "end_paid": "left",
+    "end_paid": "middle",
     "leaders": [
      "Rasmus Granzin (SWE)",
+     "Clemente Seguel Lac mara (CHI)",
      "Matt Wearn (AUS)",
      "Lawson McAullay (AUS)",
-     "Dimitri Peroni (ITA)",
-     "Willem Wiersema (NED)"
+     "Dimitri Peroni (ITA)"
     ],
     "shift_pattern": {
-     "trend_deg_per_h": 7.0,
-     "swing_sd_deg": 18.7,
-     "turn_over_race_deg": 5.3,
+     "trend_deg_per_h": 14.0,
+     "swing_sd_deg": 24.9,
+     "turn_over_race_deg": 10.5,
      "label": "oscillating",
      "rule": "persistent if turn over 45 min >= 2x swing SD; 'with trend' if >= 1x"
     }
@@ -53,7 +53,7 @@
    },
    "match": {
     "side": true,
-    "start_end": true,
+    "start_end": false,
     "shift_pattern": false,
     "plan_side": true
    },
@@ -68,39 +68,39 @@
        "type": "beat",
        "to": "mark1",
        "start_s": 0,
-       "at_mark_s": 760,
-       "within_80m_s": 712,
-       "time_s": 760,
+       "at_mark_s": 758,
+       "within_80m_s": 708,
+       "time_s": 758,
        "tacks": 5
       },
       {
        "leg": 2,
        "type": "run",
        "to": "gate3",
-       "start_s": 760,
-       "at_mark_s": 1298,
-       "within_80m_s": 1278,
-       "time_s": 538,
+       "start_s": 758,
+       "at_mark_s": 1302,
+       "within_80m_s": 1282,
+       "time_s": 544,
        "gybes": 2
       },
       {
        "leg": 3,
        "type": "beat",
        "to": "mark2",
-       "start_s": 1298,
-       "at_mark_s": 1880,
-       "within_80m_s": 1832,
-       "time_s": 582,
+       "start_s": 1302,
+       "at_mark_s": 1882,
+       "within_80m_s": 1834,
+       "time_s": 580,
        "tacks": 4
       },
       {
        "leg": 4,
        "type": "run",
        "to": "gate3",
-       "start_s": 1880,
+       "start_s": 1882,
        "at_mark_s": 2234,
-       "within_80m_s": 2214,
-       "time_s": 354,
+       "within_80m_s": 2212,
+       "time_s": 352,
        "gybes": 1
       },
       {
@@ -116,7 +116,7 @@
      ],
      "tacks_and_gybes": 12,
      "indicative_rank_vs_real_finishers": 8,
-     "real_finishers_seen": 43
+     "real_finishers_seen": 44
     },
     "race_winner": {
      "boat": "Matt Wearn (AUS)",
@@ -190,25 +190,25 @@
         "leg": 2,
         "type": "run",
         "to": "gate3",
-        "within_80m_s": 1259,
-        "gybes": 1,
-        "data_coverage_pct": 20
+        "within_80m_s": null,
+        "gybes": null,
+        "data_coverage_pct": 19
        },
        {
         "leg": 3,
         "type": "beat",
         "to": "mark2",
         "within_80m_s": null,
-        "tacks": 1,
-        "data_coverage_pct": 38
+        "tacks": 0,
+        "data_coverage_pct": 18
        },
        {
         "leg": 4,
         "type": "run",
         "to": "gate3",
-        "within_80m_s": 2219,
-        "gybes": 5,
-        "data_coverage_pct": 62
+        "within_80m_s": 1259,
+        "gybes": 1,
+        "data_coverage_pct": 24
        },
        {
         "leg": 5,
@@ -216,7 +216,7 @@
         "to": "finish",
         "within_80m_s": 2349,
         "turns": 0,
-        "data_coverage_pct": 46
+        "data_coverage_pct": 42
        }
       ],
       "gap_agent_minus_winner_s": 23
@@ -239,7 +239,7 @@
         "type": "run",
         "to": "gate3",
         "within_80m_s": null,
-        "gybes": 1,
+        "gybes": 0,
         "data_coverage_pct": 11
        },
        {
@@ -319,11 +319,11 @@
      }
     ],
     "boat_model": {
-     "vup_kn": 4.87,
-     "tack_angle": 84.3,
-     "vdn_kn": 5.99,
-     "downwind_twa": 156.48,
-     "vreach_kn": 5.35,
+     "vup_kn": 4.9,
+     "tack_angle": 84.2,
+     "vdn_kn": 6.0,
+     "downwind_twa": 157.35,
+     "vreach_kn": 5.3,
      "tack_loss_s": 6.0,
      "gybe_loss_s": 4.0
     }

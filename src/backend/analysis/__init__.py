@@ -13,11 +13,26 @@ from backend import paths
 
 from . import image_text, tagging, text_reader, transcripts
 
+try:
+    from . import audio_text
+
+    AUDIO_SUPPORTED = tuple(audio_text.SUPPORTED)
+    transcribe_audio = audio_text.transcribe_audio
+except ImportError:
+    # The front_end_v0.1 branch imports backend/analysis/audio_text.py but never committed it (checked on its history).
+    # Until it exists, voice memos and audio uploads answer with a clear error instead of breaking the whole package.
+    AUDIO_SUPPORTED = (".m4a", ".mp3", ".wav")
+
+    def transcribe_audio(data):  # noqa: ARG001
+        return {"text": "", "method": None,
+                "error": "Voice transcription is not installed: backend/analysis/audio_text.py is missing from the repository."}
+
 DEMO_DIR = paths.DEMO_UPLOADS_DIR
 
 BADGES = {".csv": "CSV", ".xlsx": "XLSX", ".xls": "XLS", ".gpx": "GPX", ".txt": "TXT", ".md": "TXT",
           ".pdf": "PDF", ".docx": "DOCX", ".vtt": "VTT", ".srt": "SRT", ".jpg": "JPG",
-          ".jpeg": "JPG", ".png": "PNG", ".webp": "IMG", ".json": "JSON"}
+          ".jpeg": "JPG", ".png": "PNG", ".webp": "IMG", ".json": "JSON",
+          **dict.fromkeys(AUDIO_SUPPORTED, "AUDIO")}
 UPLOAD_TYPES = sorted(suffix.lstrip(".") for suffix in BADGES)
 
 # What the coach can upload, which tab uses it, and how we read it.
@@ -34,7 +49,7 @@ COACH_UPLOADS = [
      "used_in": "Coach brief, Strategy overview", "capability": "text", "required": False},
     {"item": "Photos of whiteboards, sketches, handwritten notes", "formats": "JPG, PNG",
      "entity": "Picture of text", "used_in": "Coach brief", "capability": "image", "required": False},
-    {"item": "Debrief or meeting transcripts", "formats": "VTT, SRT, TXT or paste",
+    {"item": "Debrief or meeting transcripts, voice memos", "formats": "VTT, SRT, TXT, paste, M4A, MP3, WAV or record",
      "entity": "Transcript", "used_in": "Coach brief, Sailor brief", "capability": "transcript",
      "required": False},
 ]
@@ -47,6 +62,8 @@ def map_file(name):
     suffix = Path(name).suffix.lower()
     lower = name.lower()
     badge = BADGES.get(suffix, suffix.lstrip(".").upper() or "FILE")
+    if suffix in AUDIO_SUPPORTED:
+        return badge, "Transcript", "audio"
     if suffix in transcripts.SUPPORTED or "transcript" in lower:
         return badge, "Transcript", "transcript"
     if suffix in image_text.SUPPORTED:
@@ -73,6 +90,8 @@ def analyse(name, data):
         result.update(image_text.read_image_text(name, data))
     elif capability == "transcript":
         result.update(transcripts.parse_transcript(data.decode("utf-8", errors="replace")))
+    elif capability == "audio":
+        result.update(transcribe_audio(data))
     elif capability == "text":
         result.update(text_reader.read_text(name, data))
     elif capability == "structured":
@@ -88,6 +107,15 @@ def analyse_pasted_transcript(title, text):
     result = {"name": title, "badge": "TXT", "entity": "Transcript", "capability": "transcript",
               "tags": {}}
     result.update(transcripts.parse_transcript(text))
+    if result["text"]:
+        result["tags"] = tagging.tag(result["text"])
+    return result
+
+
+def analyse_voice_memo(title, data):
+    """Transcribe a recording made in the dashboard and tag its text."""
+    result = {"name": title, "badge": "AUDIO", "entity": "Transcript", "capability": "audio", "tags": {}}
+    result.update(transcribe_audio(data))
     if result["text"]:
         result["tags"] = tagging.tag(result["text"])
     return result

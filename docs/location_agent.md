@@ -17,7 +17,7 @@ data/weather/raw (+ July pack, data/geo, GPS analysis)          (commands: PYTHO
 | Strategist (race morning) | Evaluator only (after the race) |
 |---|---|
 | July history 2021–25; the day-ahead forecast (wind, temperature, cloud); measurements up to 11:00; tides; currents; terrain; depth | The real wind of the day (from all boats' tacking angles + HRRR) |
-| `data/location_agent/course/<date>.json`: **buoy and line coordinates only** | All 44 SailSync tracks: routes, tacks, rounding times |
+| `data/location_agent/course/<date>.json`: **buoy and line coordinates only** | All 45 SailSync tracks: routes, tacks, rounding times |
 | `data/location_agent/inputs/<date>_rag_insights.txt`: the RAG's text insights from the user's inputs, used as an input the strategy builds on | |
 | Fixed ILCA class rule-of-thumb numbers (`src/backend/location_agent/settings.yaml`) | |
 
@@ -179,3 +179,13 @@ compare with. `location_agent/forecast_sim.py` instead sails the plan on that pl
 with the pack's class priors, and also sails pure left / middle / right variants. It is a plausibility and sensitivity
 check. On 19 July the forecast wind (231 deg) is only 39 deg off the placeholder course, so the mark is a close reach and
 the result says so; the real course will be laid to the wind.
+
+## Known gaps from the `front_end_v0.1` branch
+
+The colleague's `location_agent/README.md` also describes a `compare_winners` module (agent vs the top three
+boats, writing `top3_comparison.md/json`). **That module is on no commit of their branch**, so it is not here and that
+README passage was not copied. The README also notes that the saved evaluation there used the mock strategy; the one
+in this repository is the Claude Sonnet 5.5 strategy. The 45th GPS track (Clemente Seguel Lacámara, id 15391, fetched with
+`backend.scripts.sailsync_probe`) is in `data/trajectories/sailsync/`; it is the boat the race replay ranks third in race 1.
+Adding it grew the simulator's real fleet from 44 to 45 boats and the committed 2026-07-19 evaluation was regenerated
+(race 1 finish 39:32 unchanged, rank 8 of 44 real finishers seen instead of 43).

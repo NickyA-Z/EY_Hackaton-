@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory() as tmp:
     # 1 roundings: rank and gap at mark 1
     leg1 = table[table["leg"] == 1].set_index("boat_id")
     assert list(leg1.sort_values("rank_at_mark").index) == ["1", "2", "3"]
-    assert leg1.loc["3", "behind_s"] == 100 and leg1.loc["1", "gained_s"] == 0
+    assert leg1.loc["3", "behind_s"] == 100 and leg1.loc["2", "gained_s"] == 0 and leg1.loc["1", "gained_s"] == 50
 
     # 2 mark 1 recovered from the rounding positions (within 5 m of (0, 1000))
     m1 = marks[marks["mark"] == 1].iloc[0]

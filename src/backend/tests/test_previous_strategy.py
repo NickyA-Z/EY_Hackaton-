@@ -168,7 +168,7 @@ real = pytest.mark.skipif(not (ps.race_analysis.RESULTS / "probe_report.json").e
 @real
 def test_real_data_loads_all_boats_inside_the_venue_box():
     tracks = ps.load_fleet_tracks()
-    assert len(tracks) == 44                                          # 44 CSVs incl. the nameless USA 211414
+    assert len(tracks) == 45                                          # 45 CSVs incl. the nameless USA 211414
     assert all(t["df"]["lat"].between(*ps.LAT_RANGE).all() and t["df"]["lng"].between(*ps.LNG_RANGE).all()
                for t in tracks.values())
 

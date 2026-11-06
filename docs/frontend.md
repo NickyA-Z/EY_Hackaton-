@@ -1,8 +1,10 @@
 # LA28 Location Agent dashboard
 
-The single-row top navigation holds **Live**, **Venue** (Geoinformation and Rules),
-**Briefs** (Coach and Sailor) and **Strategy** (`src/frontend/agent_views.py`, logic in
-`src/backend`, see [backend.md](backend.md)). Two icons sit at the right: **upload** opens
+The dashboard has two modes, chosen with the **Preparation | ● Live** switch at the top. **Preparation** opens on the
+event globe (pick an LA 2028 venue to dive in) and then shows a single-row top navigation with **Venue** (Geoinformation
+and Rules), **Strategy**, **Briefs** (Coach and Sailor), **Speed**, **Previous strategy** and a globe icon back to the
+landing page (`src/frontend/agent_views.py`, logic in `src/backend`, see [backend.md](backend.md)). **Live** shows the
+live race view only, and needs a venue to have been chosen in Preparation first. Two icons sit at the right: **upload** opens
 the Coach file page (upload, preview and delete files) and **location** opens the
 venue, class, race-day, time-of-day and coordinate settings. **Venue · Geoinformation** shows the venue map and one **Load** control that
 fetches location geodata, the regional map and the point series together. The regional
@@ -55,8 +57,10 @@ cd src/frontend && PYTHONPATH=.. uv run --python 3.12 --with-requirements requir
 
 ## Dashboard controls
 
+0. Preparation opens on the event globe. Pick an LA 2028 venue (pin, list or **Enter venue →**) to dive into the dashboard; the
+   globe icon in the header goes back. Non-LA pins are demo previews.
 1. Open the location icon (top right) to set venue, class, race day, time of day and the shared latitude and longitude.
-2. Open **Live** or **Briefs · Coach** for the regional map on the race day (choose
+2. Switch to **● Live**, or open **Briefs · Coach**, for the regional map on the race day (choose
    the marine layer above the map; it opens at the selected hour).
 3. In **Venue · Geoinformation**, choose the sailing area, marine layer, point variable
    and dates, then press **Load** once: location, map and points appear together.
@@ -99,6 +103,14 @@ What the data can and cannot do:
 Code: `src/frontend/previous_strategy_view.py` (scene and panels), `src/backend/previous_strategy.py`
 (data, no Streamlit), tests in `src/backend/tests/test_previous_strategy.py`.
 
+## Voice memos (not working yet)
+
+The Coach file page has a **Record a voice memo** tab and accepts M4A, MP3 and WAV uploads. They are transcribed by
+`backend/analysis/audio_text.py` (Whisper: `faster-whisper`, or `mlx-whisper` on Apple silicon, plus `av`). **That module was
+never committed on the `front_end_v0.1` branch**, so until it exists `backend.analysis` answers audio with the error
+"Voice transcription is not installed" instead of failing to import. The dependencies are not in `pyproject.toml` for the
+same reason.
+
 ## Regional map layers
 
 | Layer | Display | Open-Meteo variables |
@@ -139,6 +151,10 @@ navigation.
 | --- | --- |
 | `src/frontend/dashboard.py` | Location Agent navigation, views, session state, metrics, tables, and charts |
 | `src/frontend/agent_views.py` | Coach workflow, venue, rules, briefings, strategy overview, and live views |
+| `src/frontend/globe.py` | Preparation landing globe (`st.components.v2`): event pins per boat class, dive-in to a venue, click to set the shared location |
+| `src/frontend/race_map.py` | The race replay map of the Live mode: recorded tracks of the ranked boats and the simulated agent over a basemap |
+| `src/frontend/race_progress.py` | Race-scoped recorded tracks, rankings and estimated first-buoy arrivals (from `data/trajectories/sailsync/` and the course file) |
+| `src/frontend/satellite_replay.py` | Optional satellite GPS replay (pydeck); needs a public `MAPBOX_API_KEY` (`pk.*`) in the environment, nothing is stored |
 | `src/frontend/previous_strategy_view.py` | Previous strategy tab: 3D time-cube scene (pydeck), layer picker, conditions, left/right and strategy-document panels |
 | `src/frontend/current_map.py` | Leaflet basemap, particle and colour-field canvases, time controls, interpolation, and map rendering |
 | `src/backend/compute/map_grid.py` | Layer definitions, regional bounds, grid construction, masking, and direction-to-vector conversion |

@@ -6,7 +6,11 @@ import streamlit as st
 
 
 def render_current_map(payload, height=650):
-    """Render an animated vector field or scalar colour field."""
+    """Render an animated vector field or scalar colour field.
+
+    Payload key `style`: "tracker" (default, YB-tracker look) or "classic" (the original dark map).
+    """
+    payload = {"style": "tracker", **payload}
     encoded_payload = json.dumps(payload, separators=(",", ":")).replace(
         "</", "<\\/"
     )
@@ -36,6 +40,7 @@ CURRENT_MAP_HTML = r"""
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
   <style>
     * { box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; margin: 0; background: #06151f; }
@@ -87,6 +92,81 @@ CURRENT_MAP_HTML = r"""
     }
     .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #071c27; color: #eaf8f6; }
     .leaflet-popup-content { font: 600 11px/1.6 ui-monospace, monospace; }
+    /* ---------- Tracker style (YB race-viewer look) ---------- */
+    #timeline, .tb, .tpanel { display: none; }
+    body.tracker { font-family: Figtree, 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif; color: #323552; }
+    body.tracker #map { border-radius: 14px; }
+    body.tracker .leaflet-container { font-family: inherit; }
+    body.tracker .leaflet-control-zoom { display: none; }
+    body.tracker .leaflet-control-attribution { background: rgba(255,255,255,.55) !important; color: #323552; }
+    body.tracker .leaflet-control-attribution a { color: #323552; }
+    .glass { background: rgba(255,255,255,.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border-radius: 8px; color: #323552; box-shadow: 0 2px 14px rgba(30,40,70,.14); }
+    body.tracker .hud { left: 12px; top: 12px; width: auto; padding: 8px 12px; color: #323552; border: 0;
+      background: rgba(255,255,255,.55); backdrop-filter: blur(8px); border-radius: 8px; box-shadow: 0 2px 14px rgba(30,40,70,.14); }
+    body.tracker .hud .slider-row, body.tracker .legend { display: none; }
+    body.tracker .kicker { color: #323552; font: 700 12px/1.2 Figtree, sans-serif; letter-spacing: .02em; text-transform: none; }
+    body.tracker .readout { left: 12px; bottom: 112px; color: #323552; border: 0; background: rgba(255,255,255,.55);
+      backdrop-filter: blur(8px); font: 500 11px/1.45 'DM Mono', ui-monospace, monospace; }
+    body.tracker .gps-metrics { top: 70px; right: 12px; color: #323552; border: 0; background: rgba(255,255,255,.55);
+      backdrop-filter: blur(8px); border-radius: 8px; box-shadow: 0 2px 14px rgba(30,40,70,.14); }
+    body.tracker .gps-metrics-title { color: #323552; font: 700 13px Figtree, sans-serif; letter-spacing: 0; border-color: rgba(50,53,82,.15); }
+    body.tracker .gps-metric { color: #4b4e6a; font-size: 12px; border-color: rgba(50,53,82,.1); }
+    body.tracker .gps-metric strong { color: #323552; font: 600 14px 'DM Mono', monospace; }
+    /* top-right round buttons */
+    body.tracker .tb { display: flex; gap: 10px; position: absolute; z-index: 900; top: 12px; right: 12px; }
+    .tb button { width: 46px; height: 46px; border-radius: 999px; border: 0; background: #f1f3f4; color: #3c4043;
+      display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 8px rgba(30,40,70,.18); position: relative; }
+    .tb button.on { background: radial-gradient(at 50% 10%, #fefac5 0%, #fae816 100%); }
+    .tb button:hover::after { content: attr(data-tip); position: absolute; top: 54px; right: 0; white-space: nowrap;
+      background: #1f2233; color: #fff; font: 600 12px Figtree, sans-serif; padding: 6px 10px; border-radius: 6px; }
+    .tb svg, .tile svg, .tp-head svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6;
+      stroke-linecap: round; stroke-linejoin: round; }
+    /* panels (weather overlay / map settings) */
+    body.tracker .tpanel.open { display: block; }
+    .tpanel { position: absolute; z-index: 880; left: 12px; top: 12px; width: min(360px, calc(100% - 24px)); overflow: hidden; }
+    .tp-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; font: 700 17px Figtree, sans-serif;
+      background: rgba(255,255,255,.25); }
+    .tp-head .x { margin-left: auto; border: 0; background: none; font-size: 22px; line-height: 1; color: #323552; cursor: pointer; }
+    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px 14px; }
+    .tile { border: 0; border-radius: 8px; background: rgba(255,255,255,.6); color: #323552; padding: 12px 4px 10px;
+      display: grid; justify-items: center; gap: 3px; cursor: pointer; font: 600 13px Figtree, sans-serif; }
+    .tile small { font: 400 11px Figtree, sans-serif; opacity: .8; }
+    .tile i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .tp-legend .legend-row + .legend-row { margin-top: 10px; }
+    .tp-legend .legend-row > span { font: 600 13px Figtree, sans-serif; }
+    .tp-legend .gradient { width: 100%; height: 14px; border-radius: 4px; }
+    .tp-legend .legend-values { color: #323552; font: 500 11px 'DM Mono', monospace; }
+    .tile.on { background: #2f5bd8; color: #fff; box-shadow: 0 2px 10px rgba(47,91,216,.35); }
+    .tile:not(.on):hover { background: rgba(255,255,255,.85); }
+    .tp-legend { padding: 10px 14px 12px; border-top: 1px solid rgba(50,53,82,.08); }
+    .tp-legend h4 { margin: 0 0 8px; font: 600 14px Figtree, sans-serif; }
+    .tp-bar { height: 20px; border-radius: 4px; }
+    .tp-ticks { display: flex; justify-content: space-between; margin-top: 5px; font: 500 11px 'DM Mono', monospace; }
+    .tp-src { margin-top: 8px; font: 400 11px Figtree, sans-serif; opacity: .8; }
+    .srow { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer;
+      font: 500 14px Figtree, sans-serif; border-top: 1px solid rgba(50,53,82,.08); }
+    .srow i { width: 24px; height: 24px; border-radius: 50%; border: 1.6px solid #323552; display: grid; place-items: center; font-style: normal; font-size: 13px; }
+    .srow:not(.on) i { opacity: .35; }
+    /* bottom timeline */
+    body.tracker #timeline { display: block; position: absolute; z-index: 870; left: 12px; right: 12px; bottom: 12px; padding: 10px 14px 12px; }
+    .tl-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    body.tracker #timeLabel { margin: 0; font: 600 18px 'DM Mono', ui-monospace, monospace; letter-spacing: .01em; color: #323552; }
+    body.tracker #playButton { border: 0; background: #fff; color: #323552; border-radius: 999px; padding: 7px 14px;
+      font: 600 13px Figtree, sans-serif; box-shadow: 0 1px 6px rgba(30,40,70,.15); }
+    .tl-bar { position: relative; height: 28px; border-radius: 999px; background: rgba(140,142,158,.42); overflow: visible; }
+    #tlTicks span { position: absolute; top: 50%; transform: translateY(-50%); padding-left: 5px; white-space: nowrap;
+      border-left: 1px solid rgba(255,255,255,.75); font: 500 11px 'DM Mono', monospace; color: #3c3f5c; }
+    body.tracker #timeSlider { -webkit-appearance: none; appearance: none; position: absolute; inset: 0; width: 100%;
+      height: 100%; margin: 0; background: transparent; }
+    body.tracker #timeSlider::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
+      background: #fff; border: 2px solid #323552; box-shadow: 0 1px 5px rgba(0,0,0,.25); }
+    /* markers */
+    .pin { transform: translate(-50%, -100%); width: 26px; }
+    .coord, .btag { position: absolute; left: 16px; top: -34px; white-space: nowrap; padding: 3px 7px; border-radius: 4px;
+      font: 500 11px 'DM Mono', monospace; background: rgba(255,255,255,.75); color: #323552; }
+    .boat { position: absolute; transform: translate(-50%, -50%); }
+    .btag { left: 12px; top: -30px; font: 600 11px Figtree, sans-serif; color: #fff; }
     @media (max-width: 600px) {
       .hud { left: 10px; top: 10px; width: calc(100% - 20px); }
       .legend { right: 10px; bottom: 14px; }
@@ -111,6 +191,25 @@ CURRENT_MAP_HTML = r"""
     <div class="gps-metric"><span>In 30 seconds</span><strong id="gpsSpeedPredicted">—</strong></div>
     <div class="gps-metric"><span>80% range</span><strong id="gpsSpeedRange">—</strong></div>
     <div class="gps-metric"><span>Replay actual</span><strong id="gpsSpeedActual">—</strong></div>
+  </div>
+  <div class="tb">
+    <button id="tbReset" data-tip="Reset map"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 4v4h-4M20 12a8 8 0 0 1-14 5.3M4 20v-4h4"/></svg></button>
+    <button id="tbSettings" data-tip="Map settings"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12.5l10 5 10-5M2 17l10 5 10-5"/></svg></button>
+    <button id="tbOverlay" data-tip="Weather overlay"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 11.5 3.3 3.3 0 0 0 7 18zM12 13l-2 3h4l-2 3"/></svg></button>
+    <button id="tbFull" data-tip="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+  </div>
+  <div class="tpanel glass" id="overlayPanel">
+    <div class="tp-head"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 11.5 3.3 3.3 0 0 0 7 18zM12 13l-2 3h4l-2 3"/></svg>Weather Overlay<button class="x" data-close>×</button></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="tp-legend" id="tpLegend"></div>
+  </div>
+  <div class="tpanel glass" id="settingsPanel">
+    <div class="tp-head"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12.5l10 5 10-5M2 17l10 5 10-5"/></svg>Map Settings<button class="x" data-close>×</button></div>
+    <div id="settingsRows"></div>
+  </div>
+  <div id="timeline" class="glass">
+    <div class="tl-head"><div id="tlTime"></div><div id="tlPlay"></div></div>
+    <div class="tl-bar"><div id="tlTicks"></div><div id="tlTrack"></div></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -212,6 +311,10 @@ CURRENT_MAP_HTML = r"""
       minZoom: 1,
       maxZoom: 18
     });
+    const tracker = field.style !== 'classic';
+    if (tracker) document.body.classList.add('tracker');
+    const T = { hidden: new Set(), showParticles: true, showLabels: true };  // hidden = layer indexes switched off in the panel
+    let labelTiles = null;
     let fallbackTilesLoaded = false;
     const oceanTiles = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
@@ -231,12 +334,26 @@ CURRENT_MAP_HTML = r"""
       }).addTo(map);
     });
     oceanTiles.addTo(map);
-    L.tileLayer(
+    labelTiles = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}',
       { maxNativeZoom: 12, maxZoom: 18, pane: 'overlayPane' }
     ).addTo(map);
     const locationMarker = field.location_marker;
-    if (locationMarker) {
+    function degMin(value, positive, negative) {
+      const a = Math.abs(value);
+      return `${Math.floor(a)}° ${((a % 1) * 60).toFixed(2)} ${value >= 0 ? positive : negative}`;
+    }
+    if (locationMarker && tracker) {
+      L.circle([locationMarker.lat, locationMarker.lng], {
+        radius: locationMarker.radius_m || 1000, color: '#323552', weight: 1.5,
+        fillColor: '#323552', fillOpacity: .04, dashArray: '6 6', interactive: false
+      }).addTo(map);
+      L.marker([locationMarker.lat, locationMarker.lng], { interactive: false, icon: L.divIcon({
+        className: '', iconSize: [0, 0],
+        html: '<div class="pin"><svg viewBox="0 0 26 36" width="26" height="36"><path d="M13 35C13 35 2 21 2 13a11 11 0 0 1 22 0c0 8-11 22-11 22z" fill="#fae816" stroke="#8a7f00" stroke-width="1"/><circle cx="13" cy="13" r="4.5" fill="#fff"/></svg></div>' +
+              `<div class="coord">${locationMarker.name} · ${degMin(locationMarker.lat, 'N', 'S')}, ${degMin(locationMarker.lng, 'E', 'W')}</div>`
+      })}).addTo(map);
+    } else if (locationMarker) {
       map.createPane('locationPane');
       map.getPane('locationPane').style.zIndex = 650;
       map.getPane('locationPane').style.pointerEvents = 'none';
@@ -271,6 +388,97 @@ CURRENT_MAP_HTML = r"""
       }
     }
     scopeMapToLoadedData(true);
+
+    // ---------- Tracker helpers ----------
+    const ICONS = {
+      'Wind': '<path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',
+      'Waves': '<path d="M2 11c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3M2 17c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3"/>',
+      'Wind waves': '<path d="M3 6h9a2.5 2.5 0 1 0-2.5-2.5M2 15c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/>',
+      'Swell': '<path d="M2 16c3 0 4-9 9.5-9S17 16 22 16M2 20h20"/>',
+      'Ocean currents': '<path d="M4 8h13m-3-3 3 3-3 3M20 16H7m3-3-3 3 3 3"/>',
+    };
+    const $ = (id) => document.getElementById(id);
+
+    function openPanel(id) {
+      ['overlayPanel', 'settingsPanel'].forEach((panel) => {
+        const open = panel === id && !$(panel).classList.contains('open');
+        $(panel).classList.toggle('open', open);
+        $(panel === 'overlayPanel' ? 'tbOverlay' : 'tbSettings').classList.toggle('on', open);
+      });
+    }
+    function renderSettings(onChange) {
+      const rows = [['showParticles', 'Show moving particles'], ['showLabels', 'Show place names']];
+      $('settingsRows').innerHTML = rows.map(([key, label]) =>
+        `<div class="srow ${T[key] ? 'on' : ''}" data-key="${key}">${label}<i>✓</i></div>`).join('');
+      $('settingsRows').querySelectorAll('.srow').forEach((row) => row.addEventListener('click', () => {
+        T[row.dataset.key] = !T[row.dataset.key];
+        if (labelTiles) T.showLabels ? labelTiles.addTo(map) : map.removeLayer(labelTiles);
+        renderSettings(onChange);
+        onChange();
+      }));
+    }
+    function setTicks(count, labelAt) {
+      const n = Math.min(count, 8);
+      $('tlTicks').innerHTML = count < 2 ? '' : Array.from({ length: n }, (_, k) => {
+        const i = Math.round(k * (count - 1) / Math.max(1, n - 1));
+        return `<span style="left:calc(${(i / (count - 1) * 100).toFixed(2)}% * .93)">${labelAt(i)}</span>`;
+      }).join('');
+    }
+    // Hull-shaped boat with a name tag, pointing along its last few GPS fixes.
+    let boatMarker = null;
+    function placeBoat(track, index) {
+      if (!tracker || !track.length) return;
+      const point = track[index], prev = track[Math.max(0, index - 3)];
+      const dx = (point.lng - prev.lng) * Math.cos(point.lat * Math.PI / 180), dy = point.lat - prev.lat;
+      const heading = (dx || dy) ? Math.atan2(dx, dy) * 180 / Math.PI : 0;
+      const html = `<div class="boat" style="transform:translate(-50%,-50%) rotate(${heading}deg)">` +
+        '<svg viewBox="0 0 12 30" width="12" height="30"><path d="M6 0C10 8 11 18 10 30H2C1 18 2 8 6 0z" fill="#ff6900" stroke="#1d2340" stroke-width=".8"/></svg></div>' +
+        `<div class="btag" style="background:#ff6900">${field.boat_label || 'Boat'} · ${point.speed_kt.toFixed(1)} kt</div>`;
+      const icon = L.divIcon({ className: '', iconSize: [0, 0], html });
+      if (!boatMarker) boatMarker = L.marker([point.lat, point.lng], { icon, interactive: false, zIndexOffset: 1000 }).addTo(map);
+      else boatMarker.setLatLng([point.lat, point.lng]).setIcon(icon);
+    }
+    if (tracker) {
+      $('tlTime').appendChild($('timeLabel'));
+      $('tlPlay').appendChild($('playButton'));
+      $('tlTrack').appendChild($('timeSlider'));
+      // The existing code writes PLAY/PAUSE; show it as the tracker's Playback pill.
+      const playButton = $('playButton');
+      new MutationObserver(() => {
+        const label = playButton.textContent === 'PAUSE' ? '❚❚ Pause' : playButton.textContent === 'PLAY' ? '▷ Playback' : null;
+        if (label) playButton.textContent = label;
+      }).observe(playButton, { childList: true, characterData: true, subtree: true });
+      $('tbReset').addEventListener('click', () => scopeMapToLoadedData(true));
+      // Full screen: the map lives in a same-origin iframe, so fullscreen its frame in the app page.
+      const frame = window.frameElement, host = frame ? frame.ownerDocument : document;
+      const showFull = (on) => {
+        $('tbFull').classList.toggle('on', on);
+        $('tbFull').dataset.tip = on ? 'Exit full screen' : 'Full screen';
+        setTimeout(() => map.invalidateSize(), 50);
+      };
+      const overlayOn = () => frame && frame.style.position === 'fixed';
+      const setOverlay = (on) => {  // fallback when the browser refuses the Fullscreen API
+        if (!frame) return;
+        Object.assign(frame.style, on
+          ? { position: 'fixed', inset: '0', width: '100vw', height: '100vh', zIndex: '999999', background: '#fff' }
+          : { position: '', inset: '', width: '', height: '', zIndex: '', background: '' });
+        showFull(on);
+      };
+      $('tbFull').addEventListener('click', () => {
+        if (host.fullscreenElement) return host.exitFullscreen();
+        if (overlayOn()) return setOverlay(false);
+        const target = frame || document.documentElement;
+        (target.requestFullscreen ? target.requestFullscreen() : Promise.reject()).catch(() => setOverlay(true));
+      });
+      host.addEventListener('fullscreenchange', () => showFull(!!host.fullscreenElement));
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && overlayOn()) setOverlay(false); });
+      $('tbSettings').addEventListener('click', () => openPanel('settingsPanel'));
+      $('tbOverlay').addEventListener('click', () => openPanel('overlayPanel'));
+      document.querySelectorAll('[data-close]').forEach((button) =>
+        button.addEventListener('click', () => openPanel(null)));
+      renderSettings(() => { fieldDirtyHook(); });
+    }
+    let fieldDirtyHook = () => {};
 
     let overlayGpsIndex = Math.max(0, Math.min(
       gpsOverlay.length - 1,
@@ -310,6 +518,7 @@ CURRENT_MAP_HTML = r"""
         ).addTo(overlayTrail).bindTooltip(`${gpsOverlay[i].speed_kt.toFixed(1)} kt`);
       }
       const point=gpsOverlay[overlayGpsIndex];
+      placeBoat(gpsOverlay, overlayGpsIndex);
       overlayMarker.setLatLng([point.lat,point.lng])
         .bindTooltip(`Selected GPS: ${point.speed_kt.toFixed(1)} kt`);
       overlayPredictedMarker.setLatLng([point.predicted_lat,point.predicted_lng])
@@ -339,6 +548,12 @@ CURRENT_MAP_HTML = r"""
       const playButton=document.getElementById('playButton');
       slider.max=gpsOverlay.length - 1;
       document.getElementById('gpsMetrics').style.display='block';
+      if (tracker) {
+        overlayMarker.setStyle({opacity:0,fillOpacity:0});
+        overlayProjection.setStyle({color:'#d9473f'});
+        setTicks(gpsOverlay.length, (i) => new Date(gpsOverlay[i].time_epoch*1000).toLocaleTimeString('en-GB',
+          {timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit'}));
+      }
       slider.addEventListener('input',() => {
         overlayGpsPlaying=false;
         playButton.textContent='PLAY';
@@ -356,6 +571,8 @@ CURRENT_MAP_HTML = r"""
       renderGpsOverlay(overlayGpsIndex);
     }
 
+    if (gpsMode || locationOnly) document.getElementById('tbOverlay').style.display = 'none';
+    if (locationOnly && !gpsOverlay.length) document.getElementById('timeline').style.display = 'none';
     if (gpsMode) {
       const slider = document.getElementById('timeSlider');
       const timeLabel = document.getElementById('timeLabel');
@@ -371,6 +588,12 @@ CURRENT_MAP_HTML = r"""
       let gpsPlaying = field.autoplay ?? false;
       slider.max = gpsTrack.length - 1;
       document.getElementById('layerTitle').textContent='ILCA 7 · GPS MOVEMENT REPLAY';
+      if (tracker) {
+        current.setStyle({opacity:0,fillOpacity:0});
+        projection.setStyle({color:'#d9473f'});
+        setTicks(gpsTrack.length, (i) => new Date(gpsTrack[i].time_epoch*1000).toLocaleTimeString('en-GB',
+          {timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit'}));
+      }
       setSpeedLegend();
       gpsMetrics.style.display='block';
 
@@ -385,6 +608,7 @@ CURRENT_MAP_HTML = r"""
             .bindTooltip(`${gpsTrack[i].speed_kt.toFixed(1)} kt`);
         }
         const point=gpsTrack[gpsIndex];
+        placeBoat(gpsTrack, gpsIndex);
         current.setLatLng([point.lat,point.lng]).bindTooltip(`Current: ${point.speed_kt.toFixed(1)} kt`);
         predicted.setLatLng([point.predicted_lat,point.predicted_lng])
           .bindTooltip(`Predicted: ${point.predicted_speed_kt.toFixed(1)} kt`);
@@ -436,6 +660,24 @@ CURRENT_MAP_HTML = r"""
     });
     document.getElementById('layerTitle').textContent =
       `${layers.map((layer) => layer.title).join(' + ')} ${multi ? 'OVERLAY' : 'FIELD'}`.toUpperCase();
+    function renderOverlayPanel() {
+      $('tiles').innerHTML = layers.map((layer, i) => {
+        const [r, g, b] = layer.rgb;
+        return `<button class="tile ${T.hidden.has(i) ? '' : 'on'}" data-i="${i}"><svg viewBox="0 0 24 24">${ICONS[layer.title] || ICONS.Waves}</svg>` +
+          `<span><i style="background:rgb(${r},${g},${b})"></i>${layer.title}</span><small>(${layer.unit})</small></button>`;
+      }).join('');
+      $('tiles').querySelectorAll('.tile').forEach((tile) => tile.addEventListener('click', () => {
+        const i = Number(tile.dataset.i);
+        T.hidden.has(i) ? T.hidden.delete(i) : T.hidden.add(i);  // several on at once = overlapping arrows
+        renderOverlayPanel();
+        fieldDirty = true;
+      }));
+      $('tpLegend').innerHTML = document.getElementById('legend').innerHTML + '<div class="tp-src">Data provided by Open-Meteo</div>';
+    }
+    if (tracker && !gpsOverlay.length) {
+      setTicks(frames.length, (i) => (frames[i].time.split('T')[1] || `${i}:00`));
+    }
+    fieldDirtyHook = () => { fieldDirty = true; };
     // Single layer: the classic speed ramp. Several layers: each keeps its own hue, brightness = magnitude.
     document.getElementById('legend').innerHTML = layers.map((layer) => {
       const [r, g, b] = layer.rgb;
@@ -450,6 +692,10 @@ CURRENT_MAP_HTML = r"""
     if (gpsMode || gpsOverlay.length) {
       document.getElementById('gpsMetrics').style.display = 'block';
     }
+    if (tracker && !gpsOverlay.length) {
+      renderOverlayPanel();
+      if (window.innerHeight >= 520) openPanel('overlayPanel');  // small maps start with the panel closed
+    }
     slider.max = gpsOverlay.length ? gpsOverlay.length - 1 : Math.max(0, frames.length - 1);
     slider.value = gpsOverlay.length ? overlayGpsIndex : frameIndex;
 
@@ -461,6 +707,13 @@ CURRENT_MAP_HTML = r"""
     function updateTimeUi() {
       const timestamp = frames[frameIndex]?.time || '';
       timeLabel.textContent = formatTime(timestamp);
+      if (tracker) {
+        const [day, clock] = timestamp.split('T');
+        const date = new Date(`${day}T00:00:00`);
+        if (clock && !Number.isNaN(date.getTime())) {
+          timeLabel.textContent = `${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} ${clock} local`;
+        }
+      }
       hourLabel.textContent = timestamp.includes('T') ? timestamp.split('T')[1] : `${frameIndex}:00`;
       slider.value = frameIndex;
     }
@@ -546,7 +799,7 @@ CURRENT_MAP_HTML = r"""
     function drawScalarField() {
       const size = map.getSize();
       scalarContext.clearRect(0, 0, size.x, size.y);
-      layers.filter((layer) => layer.mode === 'scalar').forEach((layer) => {
+      layers.filter((layer, i) => layer.mode === 'scalar' && !T.hidden.has(i)).forEach((layer) => {
         const frame = layer.frames[Math.min(frameIndex, layer.frames.length - 1)];
         for (let row = 0; row < rows - 1; row += 1) {
           for (let column = 0; column < columns - 1; column += 1) {
@@ -574,7 +827,8 @@ CURRENT_MAP_HTML = r"""
       }
       if (fieldDirty) drawScalarField();
 
-      const vectorLayers = layers.filter((layer) => layer.mode !== 'scalar');
+      const vectorLayers = T.showParticles
+        ? layers.filter((layer, i) => layer.mode !== 'scalar' && !T.hidden.has(i)) : [];
       if (!vectorLayers.length) {
         context.clearRect(0, 0, size.x, size.y);
         requestAnimationFrame(animate);
@@ -582,7 +836,7 @@ CURRENT_MAP_HTML = r"""
       }
 
       context.globalCompositeOperation = 'destination-out';
-      context.fillStyle = 'rgba(0,0,0,.075)';
+      context.fillStyle = 'rgba(0,0,0,.075)';  // tracker: short white streaks
       context.fillRect(0, 0, size.x, size.y);
       context.globalCompositeOperation = 'source-over';
       context.lineWidth = 1.15;

@@ -116,8 +116,11 @@ def _vector_components(magnitude, direction, direction_type):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_map_grid(latitude, longitude, selected_date, layer_name, bounds=None):
-    """Build one day of scalar or directional frames for a map layer."""
+def get_map_grid(latitude, longitude, selected_date, layer_name, bounds=None, *, grid_rows=GRID_ROWS, grid_columns=GRID_COLUMNS):
+    """Build one day of scalar or directional frames for a map layer.
+
+    ``grid_rows`` x ``grid_columns`` points are requested; the dashboard asks for 5 x 5 around the selected location
+    (one request batch) and keeps the 10 x 17 default for the regional map."""
     if layer_name not in MAP_LAYERS:
         raise ValueError(f"Unsupported map layer: {layer_name}")
 
@@ -135,8 +138,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name, bounds=None):
 
     max_snap = configuration.get("max_snap", 0.11)
     bounds = bounds or regional_bounds(latitude, longitude)
-    latitudes = _axis(bounds["south"], bounds["north"], GRID_ROWS)
-    longitudes = _axis(bounds["west"], bounds["east"], GRID_COLUMNS)
+    latitudes = _axis(bounds["south"], bounds["north"], grid_rows)
+    longitudes = _axis(bounds["west"], bounds["east"], grid_columns)
     coordinates = [
         (grid_latitude, grid_longitude)
         for grid_latitude in latitudes
@@ -237,8 +240,8 @@ def get_map_grid(latitude, longitude, selected_date, layer_name, bounds=None):
         "bounds": bounds,
         "latitudes": latitudes,
         "longitudes": longitudes,
-        "rows": GRID_ROWS,
-        "columns": GRID_COLUMNS,
+        "rows": grid_rows,
+        "columns": grid_columns,
         "frames": frames,
         "minimum_value": round(minimum_value, 2),
         "maximum_value": round(maximum_value, 2),
